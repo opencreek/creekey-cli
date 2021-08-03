@@ -1,0 +1,150 @@
+use std;
+use std::fs;
+use std::os::unix::net::{UnixListener, UnixStream};
+use std::io::Read;
+use std::io::Write;
+use std::io::Cursor;
+use byteorder::BigEndian;
+use byteorder::WriteBytesExt;
+use byteorder::ReadBytesExt;
+
+#[derive(Debug)]
+enum SSHAgentPacket {
+    RequestIdentities,
+    // key_blob, data, flags
+    SignRequest(Vec<u8>, Vec<u8>, u32),
+}
+
+fn cleanup_socket() {
+    let _ = std::fs::remove_file("/tmp/test-socket").unwrap_or(());
+}
+
+fn read_key_blob() -> Vec<u8> {
+    let mut path = dirs::home_dir().unwrap();
+    path.push(".ssh");
+    path.push("id_oca.pub");
+
+    let contents = fs::read_to_string(path).expect("couldn't read id.pub");
+    let mut iter = contents.split_whitespace();
+    iter.next();
+    let key_str = match iter.next() {
+        Some(s) => s,
+        None => panic!("couldn't read id.pub: wrong format?")
+    };
+
+    println!("{}", key_str);
+    return match base64::decode(key_str) {
+        Ok(k) => k,
+        Err(e) => panic!("couldn't decode id_oca.pub: {}", e),
+    };
+}
+
+fn parse_packet(packet: &Vec<u8>) -> SSHAgentPacket {
+    println!("{:X?}", packet);
+    let mut cursor = Cursor::new(packet);
+
+    let typ = cursor.read_u8().unwrap();
+    if typ == 11 {
+        return SSHAgentPacket::RequestIdentities;
+    }
+
+    if typ == 13 {
+        let key_blob_length = cursor.read_u32::<BigEndian>().unwrap();
+        let mut key_blob = vec![0u8; key_blob_length as usize];
+        cursor.read_exact(&mut key_blob).unwrap();
+
+        let data_length = cursor.read_u32::<BigEndian>().unwrap();
+        let mut data = vec![0u8; data_length as usize];
+        cursor.read_exact(&mut data).unwrap();
+
+        let flags = cursor.read_u32::<BigEndian>().unwrap();
+
+        return SSHAgentPacket::SignRequest(key_blob, data, flags);
+    }
+
+    panic!("unknown packet")
+}
+
+fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags: u32) {
+
+}
+
+fn give_identities(mut socket: UnixStream) {
+    println!("giving identities");
+    
+    let typ = 12u8;
+
+    let nkeys = 1u32;
+
+    let key_blob = read_key_blob();
+
+    println!("{:X?}", key_blob);
+    println!("{}", key_blob.len());
+
+    let mut msg_payload = vec![];
+    msg_payload.write(&[typ]).unwrap();
+    msg_payload.write_u32::<BigEndian>(nkeys).unwrap();
+
+    msg_payload.write_u32::<BigEndian>(key_blob.len() as u32).unwrap();
+    msg_payload.write_all(&key_blob).unwrap();
+
+    let comment = "comment";
+    let comment_bytes = comment.as_bytes();
+    let comment_bytes_length = comment_bytes.len();
+    msg_payload.write_u32::<BigEndian>(comment_bytes_length as u32).unwrap();
+    msg_payload.write_all(comment_bytes).unwrap();
+
+    let length = msg_payload.len() as u32;
+
+    println!("writing: ");
+    println!("length: {}", length);
+    println!("{:X?}", msg_payload);
+
+    socket.write_u32::<BigEndian>(length).unwrap();
+    socket.write_all(&msg_payload).unwrap();
+
+    println!("finished");
+
+    read_and_handle_packet(socket);
+}
+
+fn read_and_handle_packet(mut socket: UnixStream) {
+    let length_bytes = socket.read_u32::<BigEndian>().unwrap();
+
+    let mut msg = vec![0u8; length_bytes as usize];
+    socket.read_exact(&mut msg).unwrap();
+
+    let packet = parse_packet(&msg);
+
+    match packet {
+        SSHAgentPacket::RequestIdentities => 
+            give_identities(socket),
+        SSHAgentPacket::SignRequest(key_blob, data, flags) =>
+            sign_request(socket, key_blob, data, flags),
+    };
+}
+
+fn main() {
+    ctrlc::set_handler(move || {
+        cleanup_socket();
+        std::process::exit(0);
+    }).expect("couldn't set ctrlc handler");
+
+    cleanup_socket();
+
+    let listener = match UnixListener::bind("/tmp/test-socket") {
+        Ok(listener) => listener,
+        Err(e) => panic!("{}", e),
+    };
+
+    println!("Waiting...");
+
+    for stream in listener.incoming() {
+        match stream {
+            Ok(socket) => {
+                read_and_handle_packet(socket);
+            },
+            Err(err) => panic!("{}", err)
+        }
+    }
+}
