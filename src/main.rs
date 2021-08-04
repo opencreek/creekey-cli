@@ -1,3 +1,6 @@
+mod pairing;
+mod communication;
+
 use std;
 use reqwest;
 use std::collections::HashMap;
@@ -11,6 +14,8 @@ use std::io::Cursor;
 use byteorder::BigEndian;
 use byteorder::WriteBytesExt;
 use byteorder::ReadBytesExt;
+use communication::encrypt;
+use anyhow::Result;
 
 #[derive(Debug)]
 enum SSHAgentPacket {
@@ -101,7 +106,7 @@ fn parse_packet(packet: &Vec<u8>) -> SSHAgentPacket {
     panic!("unknown packet")
 }
 
-fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags: u32) {
+fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags: u32) -> Result<()> {
     println!("{:X?}", key_blob);
     println!("{:X?}", data);
     println!("{:X?}", flags);
@@ -112,24 +117,16 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
     payload.insert("type", "sign");
     payload.insert("data", &base64_data);
 
-    let json = serde_json::to_string(&payload).unwrap();
-
-    let nonce = secretbox::gen_nonce();
     let key = read_sync_key();
+    let str = encrypt(&payload, key)?;
 
-    let ciphertext = secretbox::seal(json.as_bytes(), &nonce, &key);
-
-    let base64_ciphertext = base64::encode(ciphertext);
+    let mut map = HashMap::new();
+    map.insert("message", str);
 
     let client = reqwest::blocking::Client::new();
 
-    let base64_nonce = base64::encode(nonce);
-
-    let mut map = HashMap::new();
-    map.insert("message", base64_nonce + "|" + &base64_ciphertext);
-
-    let mut resp = client
-        .post("https://ssh-proto.s.opencreek.tech/messaging/relay/1")
+    let mut resp = client.
+        post("https://ssh-proto.s.opencreek.tech/messaging/relay/1")
         .json(&map)
         .send()
         .unwrap();
@@ -142,6 +139,7 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
     }
 
     println!("{}", str);
+    Ok(())
 }
 
 fn give_identities(mut socket: UnixStream) {
