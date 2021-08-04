@@ -17,6 +17,7 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use sodiumoxide::utils::{memzero, mlock};
+use std::borrow::BorrowMut;
 
 pub fn render_qr_code(str: &str) {
     let code = QrCode::new(str).unwrap();
@@ -90,10 +91,13 @@ struct ClientPairingData {
 fn decode_pairing_response(client_pk: PublicKey, client_sk: SecretKey, response: String) -> Result<ClientPairingData> {
     let pairingResponse = serde_json::from_str::<PairingResponse>(&response)?;
 
-    let (rx, tx) = kx::client_session_keys(&client_pk, &client_sk, &pairingResponse.serverKey).map_err(|_| anyhow!("client session keys failed"))?;
+    //TODO sanity checks on server Key
 
-    // TODO delete tx
-    let base64rx = base64::encode(rx.as_ref()); // todo delete the base64 string in memory
+    let (rx, mut tx) = kx::client_session_keys(&client_pk, &client_sk, &pairingResponse.serverKey).map_err(|_| anyhow!("client session keys failed"))?;
+
+    memzero(tx.0.as_mut());
+
+    let base64rx = base64::encode(rx.as_ref());
 
     let data: PairingData = decrypt(response, Key(rx.as_ref().try_into()?))?;
     Ok(ClientPairingData {
