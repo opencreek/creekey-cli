@@ -192,8 +192,9 @@ fn read_and_handle_packet(mut socket: UnixStream) {
     match packet {
         SSHAgentPacket::RequestIdentities => 
             give_identities(socket),
-        SSHAgentPacket::SignRequest(key_blob, data, flags) =>
-            sign_request(socket, key_blob, data, flags),
+        SSHAgentPacket::SignRequest(key_blob, data, flags) => {
+            sign_request(socket, key_blob, data, flags);
+        },
     };
 }
 
