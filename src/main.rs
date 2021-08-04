@@ -1,5 +1,9 @@
 use std;
+use reqwest;
+use std::collections::HashMap;
+use sodiumoxide::crypto::secretbox;
 use std::fs;
+use std::fs::File;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::io::Read;
 use std::io::Write;
@@ -17,6 +21,38 @@ enum SSHAgentPacket {
 
 fn cleanup_socket() {
     let _ = std::fs::remove_file("/tmp/test-socket").unwrap_or(());
+}
+
+fn generate_key() {
+    let mut path = dirs::home_dir().unwrap();
+    path.push(".config");
+    path.push("oca");
+    path.push("key");
+
+    if path.exists() {
+        return
+    }
+
+    let key = secretbox::gen_key();
+
+    let str = base64::encode(key);
+
+    let mut file = File::create(path).unwrap();
+    file.write_all(str.as_bytes()).unwrap();
+}
+
+fn read_sync_key() -> secretbox::Key {
+    let mut path = dirs::home_dir().unwrap();
+    path.push(".config");
+    path.push("oca");
+    path.push("key");
+
+    let key_str = fs::read_to_string(path).expect("couldn't read key");
+
+    return match base64::decode(key_str) {
+        Ok(k) => secretbox::Key::from_slice(&k).unwrap(),
+        Err(e) => panic!("couldn't decode key file: {}", e),
+    };
 }
 
 fn read_key_blob() -> Vec<u8> {
@@ -66,7 +102,46 @@ fn parse_packet(packet: &Vec<u8>) -> SSHAgentPacket {
 }
 
 fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags: u32) {
+    println!("{:X?}", key_blob);
+    println!("{:X?}", data);
+    println!("{:X?}", flags);
 
+    let base64_data = base64::encode(data);
+
+    let mut payload = HashMap::new();
+    payload.insert("type", "sign");
+    payload.insert("data", &base64_data);
+
+    let json = serde_json::to_string(&payload).unwrap();
+
+    let nonce = secretbox::gen_nonce();
+    let key = read_sync_key();
+
+    let ciphertext = secretbox::seal(json.as_bytes(), &nonce, &key);
+
+    let base64_ciphertext = base64::encode(ciphertext);
+
+    let client = reqwest::blocking::Client::new();
+
+    let base64_nonce = base64::encode(nonce);
+
+    let mut map = HashMap::new();
+    map.insert("message", base64_nonce + "|" + &base64_ciphertext);
+
+    let mut resp = client
+        .post("https://ssh-proto.s.opencreek.tech/messaging/relay/1")
+        .json(&map)
+        .send()
+        .unwrap();
+
+    let mut str = String::new();
+    resp.read_to_string(&mut str).unwrap();
+
+    if !resp.status().is_success() {
+        panic!("got {}: {}", resp.status(), str)
+    }
+
+    println!("{}", str);
 }
 
 fn give_identities(mut socket: UnixStream) {
@@ -131,6 +206,7 @@ fn main() {
     }).expect("couldn't set ctrlc handler");
 
     cleanup_socket();
+    generate_key();
 
     let listener = match UnixListener::bind("/tmp/test-socket") {
         Ok(listener) => listener,
