@@ -51,8 +51,9 @@ pub fn decrypt<V: DeserializeOwned>(text: String, key: Key) -> Result<V, Decrypt
     let ciphertext_str = split[1];
 
     let ciphertext = base64::decode(ciphertext_str)?;
+    let nonce_bytes = base64::decode(nonce_str)?;
 
-    let nonce = Nonce(nonce_str.as_bytes().try_into().map_err(|_| DecryptionError::InvalidNonceLength)?); // TODO error
+    let nonce = Nonce(nonce_bytes.try_into().map_err(|_| DecryptionError::InvalidNonceLength)?); // TODO error
 
     let plaintext = secretbox::open(&ciphertext, &nonce, &key).map_err(|_| DecryptionError::CouldNotBeDecrypted)?;
 

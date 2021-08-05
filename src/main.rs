@@ -158,6 +158,7 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
 
     println!("Waiting for phone authorization...");
 
+    println!("message is {}", phone_response.message);
     let data: PhoneSignResponse = decrypt(phone_response.message, key)?;
 
     if !data.accepted {
@@ -166,13 +167,17 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
     }
 
     let signature_bytes = base64::decode(data.signature)?;
-    // TODO respond to sign request
 
-    socket.write(&[typ])?;
-    socket.write_u32::<BigEndian>(signature_bytes.len() as u32)?;
-    socket.write_all(signature_bytes.as_slice())?;
+    let mut msg_payload = vec![];
+    msg_payload.write(&[typ])?;
+    msg_payload.write_u32::<BigEndian>(signature_bytes.len() as u32)?;
+    msg_payload.write_all(&signature_bytes)?;
 
-    println!("{}", str);
+    println!("{:X?}", msg_payload);
+
+    socket.write_u32::<BigEndian>(msg_payload.len() as u32)?;
+    socket.write_all(&msg_payload)?;
+
     Ok(())
 }
 
