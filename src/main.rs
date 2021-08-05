@@ -189,6 +189,7 @@ fn give_identities(mut socket: UnixStream) {
 
     let nkeys = 1u32;
 
+
     let key_blob = read_key_blob();
 
     println!("{:X?}", key_blob);

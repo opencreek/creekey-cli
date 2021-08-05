@@ -8,6 +8,7 @@ use serde::{Serialize, Deserialize};
 use std::{str, thread, time};
 use serde::de::DeserializeOwned;
 use anyhow::Result;
+use serde_json::Error;
 
 
 pub fn encrypt<V: Serialize>(value: V, key: Key) -> Result<String> {
@@ -77,7 +78,7 @@ pub fn poll_for_message<V: DeserializeOwned>(relay_id: String) -> Result<V> {
             .json::<V>();
         match resp {
             Ok(a) => break a,
-            Err(_) => (),
+            Err(e) => println!("{}",e),
         }
     };
 

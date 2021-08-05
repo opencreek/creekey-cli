@@ -64,7 +64,7 @@ struct PairingRequest<'a> {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct PairingResponse {
-    #[serde(rename="serverKey")]
+    #[serde(with = "public_key_serializer", rename="serverKey")]
     server_key: PublicKey,
     message: String
 }
