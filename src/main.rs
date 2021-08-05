@@ -16,7 +16,7 @@ use byteorder::WriteBytesExt;
 use byteorder::ReadBytesExt;
 use communication::encrypt;
 use anyhow::Result;
-use crate::communication::{poll_for_message, decrypt};
+use crate::communication::{poll_for_message, decrypt, MessageRelayResponse};
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use sodiumoxide::randombytes::randombytes;
 use crate::pairing::pair;
@@ -155,7 +155,7 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
 
     let typ = 14u8;
 
-    let phone_response = poll_for_message(relay_id)?;
+    let phone_response: MessageRelayResponse = poll_for_message(relay_id)?;
 
     println!("Waiting for phone authorization...");
 

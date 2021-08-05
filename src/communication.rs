@@ -69,12 +69,12 @@ pub struct MessageRelayResponse {
     pub message: String,
 }
 
-pub fn poll_for_message(relay_id: String) -> Result<MessageRelayResponse,> {
-    let  response: MessageRelayResponse = loop {
+pub fn poll_for_message<V: DeserializeOwned>(relay_id: String) -> Result<V> {
+    let  response: V = loop {
         thread::sleep(time::Duration::from_millis(1000));
         let resp = reqwest::blocking::get("https://ssh-proto.s.opencreek.tech/messaging/relay/".to_owned() + &relay_id)
             .unwrap()
-            .json::<MessageRelayResponse>();
+            .json::<V>();
         match resp {
             Ok(a) => break a,
             Err(_) => (),

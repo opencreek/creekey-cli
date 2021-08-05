@@ -84,18 +84,16 @@ struct ClientPairingData {
 }
 
 
-fn decode_pairing_response(client_pk: PublicKey, client_sk: SecretKey, response: String) -> Result<ClientPairingData> {
-    let pairing_response = serde_json::from_str::<PairingResponse>(&response)?;
-
+fn decode_pairing_response(client_pk: PublicKey, client_sk: SecretKey, response: PairingResponse) -> Result<ClientPairingData> {
     //TODO sanity checks on server Key
 
-    let (rx, mut tx) = kx::client_session_keys(&client_pk, &client_sk, &pairing_response.server_key).map_err(|_| anyhow!("client session keys failed"))?;
+    let (rx, mut tx) = kx::client_session_keys(&client_pk, &client_sk, &response.server_key).map_err(|_| anyhow!("client session keys failed"))?;
 
     memzero(tx.0.as_mut());
 
     let base64rx = base64::encode(rx.as_ref());
 
-    let data: PairingData = decrypt(response, Key(rx.as_ref().try_into()?))?;
+    let data: PairingData = decrypt(response.message, Key(rx.as_ref().try_into()?))?;
     Ok(ClientPairingData {
         phone_id: data.phone_id,
         public_key_ssh: data.public_key_ssh,
@@ -124,11 +122,11 @@ pub fn pair() -> Result<()> {
     render_qr_code(json.to_string().as_str());
     println!("Waiting for Pairing...");
 
-    let response = poll_for_message(pairing_id)?;
+    let response: PairingResponse = poll_for_message::<PairingResponse>(pairing_id)?;
 
     println!("Found Pairing decoding data...");
 
-    let client_data = decode_pairing_response(client_pk, client_sk, response.message)?;
+    let client_data = decode_pairing_response(client_pk, client_sk, response)?;
     println!("Saving Pairing Data...");
 
     write_key_to_disc(client_data.rx)?;
