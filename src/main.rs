@@ -5,7 +5,7 @@ use std;
 use reqwest;
 use std::collections::HashMap;
 use sodiumoxide::crypto::secretbox;
-use std::fs;
+use std::{fs, env};
 use std::fs::File;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::io::Read;
@@ -19,6 +19,7 @@ use anyhow::Result;
 use crate::communication::{poll_for_message, decrypt};
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use sodiumoxide::randombytes::randombytes;
+use crate::pairing::pair;
 
 #[derive(Debug)]
 enum SSHAgentPacket {
@@ -238,6 +239,13 @@ fn read_and_handle_packet(mut socket: UnixStream) {
 }
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() > 1 && args[1] == "--pair" {
+        pair().unwrap();
+        return
+    }
+
     ctrlc::set_handler(move || {
         cleanup_socket();
         std::process::exit(0);
@@ -262,4 +270,3 @@ fn main() {
         }
     }
 }
-
