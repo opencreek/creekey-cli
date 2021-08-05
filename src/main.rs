@@ -241,7 +241,7 @@ fn read_and_handle_packet(mut socket: UnixStream) {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() > 1 && args[1] == "--pair" {
+    if args.len() > 1 && args[1] == "pair" {
         pair().unwrap();
         return
     }
