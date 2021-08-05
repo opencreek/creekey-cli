@@ -16,6 +16,9 @@ use byteorder::WriteBytesExt;
 use byteorder::ReadBytesExt;
 use communication::encrypt;
 use anyhow::Result;
+use crate::communication::{poll_for_message, decrypt};
+use serde::{Serialize, Deserialize, Serializer, Deserializer};
+use sodiumoxide::randombytes::randombytes;
 
 #[derive(Debug)]
 enum SSHAgentPacket {
@@ -106,24 +109,35 @@ fn parse_packet(packet: &Vec<u8>) -> SSHAgentPacket {
     panic!("unknown packet")
 }
 
+
+#[derive(Serialize, Deserialize, Debug)]
+struct PhoneSignResponse {
+    signature: String,
+    accepted: bool,
+}
+
 fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags: u32) -> Result<()> {
     println!("{:X?}", key_blob);
     println!("{:X?}", data);
     println!("{:X?}", flags);
 
     let base64_data = base64::encode(data);
+    let relay_id = base64::encode_config(randombytes(32), base64::URL_SAFE);
 
     let mut payload = HashMap::new();
     payload.insert("type", "sign");
     payload.insert("data", &base64_data);
+    payload.insert("relayId", &relay_id);
 
     let key = read_sync_key();
-    let str = encrypt(&payload, key)?;
+    let str = encrypt(&payload, key.clone())?;
 
     let mut map = HashMap::new();
     map.insert("message", str);
 
     let client = reqwest::blocking::Client::new();
+
+    println!("Waiting for phone authorization...");
 
     let mut resp = client.
         post("https://ssh-proto.s.opencreek.tech/messaging/relay/1")
@@ -140,9 +154,23 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
 
     let typ = 14u8;
 
-    socket.write(typ);
-    socket.write_u32::<BigEndian>(lengthOfSignature);
-    socket.write_all(signature_bytes);
+    let phone_response = poll_for_message(relay_id)?;
+
+    println!("Waiting for phone authorization...");
+
+    let data: PhoneSignResponse = decrypt(phone_response.message, key)?;
+
+    if !data.accepted {
+        println!("Request was denied!");
+        panic!("No authorization given")
+    }
+
+    let signature_bytes = base64::decode(data.signature)?;
+    // TODO respond to sign request
+
+    socket.write(&[typ])?;
+    socket.write_u32::<BigEndian>(signature_bytes.len() as u32)?;
+    socket.write_all(signature_bytes.as_slice())?;
 
     println!("{}", str);
     Ok(())
@@ -199,7 +227,7 @@ fn read_and_handle_packet(mut socket: UnixStream) {
         SSHAgentPacket::RequestIdentities => 
             give_identities(socket),
         SSHAgentPacket::SignRequest(key_blob, data, flags) => {
-            sign_request(socket, key_blob, data, flags);
+            sign_request(socket, key_blob, data, flags).unwrap();
         },
     };
 }
@@ -229,3 +257,4 @@ fn main() {
         }
     }
 }
+

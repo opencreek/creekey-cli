@@ -5,7 +5,7 @@ use std::convert::TryInto;
 use thiserror::Error;
 use base64::DecodeError;
 use serde::{Serialize, Deserialize};
-use std::str;
+use std::{str, thread, time};
 use serde::de::DeserializeOwned;
 use anyhow::Result;
 
@@ -59,4 +59,26 @@ pub fn decrypt<V: DeserializeOwned>(text: String, key: Key) -> Result<V, Decrypt
     let plaintext_str = String::from_utf8(plaintext).map_err(|_| DecryptionError::ParseError)?;
 
     Ok(serde_json::from_str::<V>(&plaintext_str)?)
+}
+
+
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MessageRelayResponse {
+    pub message: String,
+}
+
+pub fn poll_for_message(relay_id: String) -> Result<MessageRelayResponse,> {
+    let  response: MessageRelayResponse = loop {
+        thread::sleep(time::Duration::from_millis(1000));
+        let resp = reqwest::blocking::get("https://ssh-proto.s.opencreek.tech/messaging/relay/".to_owned() + &relay_id)
+            .unwrap()
+            .json::<MessageRelayResponse>();
+        match resp {
+            Ok(a) => break a,
+            Err(_) => (),
+        }
+    };
+
+    Ok(response)
 }
