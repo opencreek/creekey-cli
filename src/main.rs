@@ -138,6 +138,12 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
         panic!("got {}: {}", resp.status(), str)
     }
 
+    let typ = 14u8;
+
+    socket.write(typ);
+    socket.write_u32::<BigEndian>(lengthOfSignature);
+    socket.write_all(signature_bytes);
+
     println!("{}", str);
     Ok(())
 }
