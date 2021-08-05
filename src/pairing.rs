@@ -131,10 +131,26 @@ pub fn pair() -> Result<()> {
 
     write_key_to_disc(client_data.rx)?;
     write_public_ssh_to_disc(client_data.public_key_ssh)?;
+    write_phone_id_to_disc(client_data.phone_id)?;
 
     println!("Done!");
 
     return Ok(());
+}
+
+fn write_phone_id_to_disc(phone_id: String) -> Result<()> {
+    let mut path = dirs::home_dir().unwrap();
+    path.push(".config");
+    path.push("oca");
+    path.push("phone_id");
+
+    if path.exists() {
+        fs::remove_file(path.clone())?;
+    }
+
+    let mut file = File::create(path).unwrap();
+    file.write_all(phone_id.as_bytes())?;
+    Ok(())
 }
 
 fn write_public_ssh_to_disc(mut key: String) -> Result<()> {

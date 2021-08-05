@@ -64,6 +64,17 @@ fn read_sync_key() -> secretbox::Key {
     };
 }
 
+fn read_sync_phone_id() -> String {
+    let mut path = dirs::home_dir().unwrap();
+    path.push(".config");
+    path.push("oca");
+    path.push("phone_id");
+
+    let key_str = fs::read_to_string(path).expect("couldn't read key");
+
+    key_str
+}
+
 fn read_key_blob() -> Vec<u8> {
     let mut path = dirs::home_dir().unwrap();
     path.push(".ssh");
@@ -131,17 +142,20 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
     payload.insert("relayId", &relay_id);
 
     let key = read_sync_key();
+    let phone_id = read_sync_phone_id();
+
     let str = encrypt(&payload, key.clone())?;
 
     let mut map = HashMap::new();
     map.insert("message", str);
+    map.insert("userId", phone_id);
 
     let client = reqwest::blocking::Client::new();
 
     println!("Waiting for phone authorization...");
 
     let mut resp = client.
-        post("https://ssh-proto.s.opencreek.tech/messaging/relay/1")
+        post("https://ssh-proto.s.opencreek.tech/messaging/ring")
         .json(&map)
         .send()
         .unwrap();
