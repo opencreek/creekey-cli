@@ -1,5 +1,7 @@
 mod pairing;
 mod communication;
+mod test_sign;
+mod sign_on_phone;
 
 use std;
 use reqwest;
@@ -15,11 +17,13 @@ use byteorder::BigEndian;
 use byteorder::WriteBytesExt;
 use byteorder::ReadBytesExt;
 use communication::encrypt;
-use anyhow::Result;
 use crate::communication::{poll_for_message, decrypt, MessageRelayResponse};
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use sodiumoxide::randombytes::randombytes;
+use anyhow::anyhow;
+use anyhow::Result;
 use crate::pairing::pair;
+use crate::test_sign::test_sign;
 
 #[derive(Debug)]
 enum SSHAgentPacket {
@@ -50,18 +54,16 @@ fn generate_key() {
     file.write_all(str.as_bytes()).unwrap();
 }
 
-fn read_sync_key() -> secretbox::Key {
+fn read_sync_key() -> Result<secretbox::Key> {
     let mut path = dirs::home_dir().unwrap();
     path.push(".config");
     path.push("oca");
     path.push("key");
 
-    let key_str = fs::read_to_string(path).expect("couldn't read key");
+    let key_str = fs::read_to_string(path).map_err(|_| anyhow!("Could not read key! Did you `pair` yet?"))?;
 
-    return match base64::decode(key_str) {
-        Ok(k) => secretbox::Key::from_slice(&k).unwrap(),
-        Err(e) => panic!("couldn't decode key file: {}", e),
-    };
+    let decoded = base64::decode(key_str)?;
+    Ok(secretbox::Key::from_slice(&decoded).unwrap())
 }
 
 fn read_sync_phone_id() -> String {
@@ -141,7 +143,7 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
     payload.insert("data", &base64_data);
     payload.insert("relayId", &relay_id);
 
-    let key = read_sync_key();
+    let key = read_sync_key()?;
     let phone_id = read_sync_phone_id();
 
     let str = encrypt(&payload, key.clone())?;
@@ -253,12 +255,15 @@ fn read_and_handle_packet(mut socket: UnixStream) {
     };
 }
 
-fn main() {
+fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() > 1 && args[1] == "pair" {
-        pair().unwrap();
-        return
+        return pair();
+    }
+
+    if args.len() > 1 && args[1] == "test" {
+        return test_sign();
     }
 
     ctrlc::set_handler(move || {
@@ -284,4 +289,5 @@ fn main() {
             Err(err) => panic!("{}", err)
         }
     }
+    Ok(())
 }

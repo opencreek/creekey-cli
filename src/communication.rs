@@ -64,23 +64,23 @@ pub fn decrypt<V: DeserializeOwned>(text: String, key: Key) -> Result<V, Decrypt
 }
 
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MessageRelayResponse {
     pub message: String,
 }
 
 pub fn poll_for_message<V: DeserializeOwned>(relay_id: String) -> Result<V> {
-    let  response: V = loop {
+    let response: V = loop {
         thread::sleep(time::Duration::from_millis(1000));
-        let resp = reqwest::blocking::get("https://ssh-proto.s.opencreek.tech/messaging/relay/".to_owned() + &relay_id)
-            .unwrap()
-            .json::<V>();
-        match resp {
-            Ok(a) => break a,
-            Err(e) => println!("{}",e),
-        }
+        let resp = reqwest::blocking::get("https://ssh-proto.s.opencreek.tech/messaging/relay/".to_owned() + &relay_id);
+        let found = match resp {
+            Ok(a) => {
+                if a.status().as_u16() != 404 {
+                    break a.json::<V>()?;
+                }
+            }
+            Err(e) => println!("{}", e)
+        };
     };
-
     Ok(response)
 }
