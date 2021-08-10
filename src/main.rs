@@ -4,6 +4,7 @@ mod test_sign;
 mod sign_on_phone;
 mod constants;
 mod setup_ssh;
+mod me;
 
 use std;
 use reqwest;
@@ -22,10 +23,11 @@ use communication::encrypt;
 use crate::communication::{poll_for_message, decrypt, MessageRelayResponse};
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use sodiumoxide::randombytes::randombytes;
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use anyhow::Result;
 use crate::pairing::pair;
 use crate::test_sign::test_sign;
+use crate::me::print_ssh_key;
 use std::path::Path;
 use crate::constants::{get_secret_key_path, get_phone_id_path, get_ssh_key_path};
 use crate::setup_ssh::setup_ssh;
@@ -78,9 +80,13 @@ fn read_sync_phone_id() -> Result<String> {
 fn read_key_blob() -> Result<Vec<u8>> {
     let path = get_ssh_key_path()?;
 
-    let contents = fs::read_to_string(path).expect("couldn't read id.pub");
+    Ok(fs::read_to_string(path)?)
+}
+
+fn read_key_blob() -> Result<Vec<u8>> {
+    let contents = read_ssh_key()?;
     let mut iter = contents.split_whitespace();
-    iter.next();
+    iter.next().context("Wrong keiy format");
     let key_str = match iter.next() {
         Some(s) => s,
         None => panic!("couldn't read id.pub: wrong format?")
@@ -192,7 +198,7 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
 
 fn give_identities(mut socket: UnixStream) -> Result<()> {
     println!("giving identities");
-    
+
     let typ = 12u8;
 
     let nkeys = 1u32;
@@ -227,7 +233,7 @@ fn give_identities(mut socket: UnixStream) -> Result<()> {
 
     println!("finished");
 
-    read_and_handle_packet(socket);
+    read_and_handle_packet(socket)?;
     Ok(())
 }
 
@@ -240,11 +246,11 @@ fn read_and_handle_packet(mut socket: UnixStream) -> Result<()>  {
     let packet = parse_packet(&msg);
 
     match packet {
-        SSHAgentPacket::RequestIdentities => 
+        SSHAgentPacket::RequestIdentities =>
             give_identities(socket)?,
         SSHAgentPacket::SignRequest(key_blob, data, flags) => {
             sign_request(socket, key_blob, data, flags)?;
-        },
+        }
     };
     Ok(())
 }
@@ -258,6 +264,9 @@ fn main() -> Result<()> {
 
     if args.len() > 1 && args[1] == "test" {
         return test_sign();
+    }
+    if args.len() > 1 && args[1] == "me" {
+        return print_ssh_key();
     }
 
     if args.len() > 1 && args[1] == "setup-ssh" {
@@ -283,7 +292,7 @@ fn main() -> Result<()> {
         match stream {
             Ok(socket) => {
                 read_and_handle_packet(socket);
-            },
+            }
             Err(err) => panic!("{}", err)
         }
     }
