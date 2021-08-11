@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::communication::{encrypt, MessageRelayResponse, poll_for_message, decrypt};
 use std::collections::HashMap;
 use std::io::Read;
-use crate::PhoneSignResponse;
+use crate::ssh_agent::PhoneSignResponse;
 use serde::{Serialize, Deserialize};
 use serde;
 use sodiumoxide::crypto::secretbox::Key;

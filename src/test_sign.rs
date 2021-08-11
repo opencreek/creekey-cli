@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::collections::HashMap;
-use crate::{read_sync_key, read_sync_phone_id, PhoneSignResponse};
+use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse};
 use crate::sign_on_phone::sign_on_phone;
 use sodiumoxide::randombytes::randombytes;
 
