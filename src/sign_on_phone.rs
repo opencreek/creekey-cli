@@ -44,7 +44,6 @@ pub fn sign_on_phone<REQUEST: Serialize, RESPONSE: DeserializeOwned>(request: RE
 
     println!("Decrypting Response...");
 
-    println!("message is {}", phone_response.message);
     let data: RESPONSE = decrypt(phone_response.message, key)?;
 
 

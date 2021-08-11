@@ -75,6 +75,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17cc5e6b5ab06331c33589842070416baa137e8b0eb912b008cfd4a78ada7919"
 
 [[package]]
+name = "ck"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arrayref",
+ "base64",
+ "byteorder",
+ "ctrlc",
+ "dirs",
+ "qrcode",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sodiumoxide",
+ "thiserror",
+]
+
+[[package]]
 name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -882,24 +900,6 @@ dependencies = [
  "libc",
  "libsodium-sys",
  "serde",
-]
-
-[[package]]
-name = "ssh-agent"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "arrayref",
- "base64",
- "byteorder",
- "ctrlc",
- "dirs",
- "qrcode",
- "reqwest",
- "serde",
- "serde_json",
- "sodiumoxide",
- "thiserror",
 ]
 
 [[package]]

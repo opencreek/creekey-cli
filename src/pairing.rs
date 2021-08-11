@@ -7,13 +7,15 @@ use sodiumoxide::crypto::kx::PublicKey;
 use sodiumoxide::randombytes::randombytes;
 use sodiumoxide::crypto::kx::SecretKey;
 use crate::communication::{decrypt, poll_for_message};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result, Context};
 use sodiumoxide::crypto::secretbox::Key;
 use std::convert::TryInto;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
 use sodiumoxide::utils::memzero;
+use crate::constants::{get_phone_id_path, get_config_folder, get_secret_key_path, get_ssh_key_path};
+use std::path::Path;
 
 pub fn render_qr_code(str: &str) {
     let code = QrCode::with_error_correction_level(str, EcLevel::L)
@@ -104,6 +106,8 @@ fn decode_pairing_response(client_pk: PublicKey, client_sk: SecretKey, response:
 pub fn pair() -> Result<()> {
     let (client_pk, client_sk) = kx::gen_keypair();
 
+    create_config_folder()?;
+
     let pairing_id_bytes = randombytes(32);
     let pairing_id = base64::encode_config(pairing_id_bytes, base64::URL_SAFE);
     let exchange = PairingRequest {
@@ -134,29 +138,25 @@ pub fn pair() -> Result<()> {
     write_phone_id_to_disc(client_data.phone_id)?;
 
     println!("Done!");
+    println!("Run %0 setup-ssh");
 
     return Ok(());
 }
 
 fn write_phone_id_to_disc(phone_id: String) -> Result<()> {
-    let mut path = dirs::home_dir().unwrap();
-    path.push(".config");
-    path.push("oca");
-    path.push("phone_id");
+    let path = get_phone_id_path()?;
 
     if path.exists() {
         fs::remove_file(path.clone())?;
     }
 
-    let mut file = File::create(path).unwrap();
+    let mut file = File::create(path)?;
     file.write_all(phone_id.as_bytes())?;
     Ok(())
 }
 
 fn write_public_ssh_to_disc(mut key: String) -> Result<()> {
-    let mut path = dirs::home_dir().unwrap();
-    path.push(".ssh");
-    path.push("id_oca.pub");
+    let path = get_ssh_key_path()?;
 
     if path.exists() {
         fs::remove_file(path.clone())?;
@@ -171,11 +171,16 @@ fn write_public_ssh_to_disc(mut key: String) -> Result<()> {
     Ok(())
 }
 
+fn create_config_folder() -> Result<()> {
+    let path = get_config_folder()?;
+    if !path.exists() {
+        fs::create_dir_all(path)?;
+    }
+    Ok(())
+}
+
 fn write_key_to_disc(mut key: String) -> Result<()> {
-    let mut path = dirs::home_dir().unwrap();
-    path.push(".config");
-    path.push("oca");
-    path.push("key");
+    let path = get_secret_key_path()?;
 
     if path.exists() {
         fs::remove_file(path.clone())?;

@@ -2,6 +2,8 @@ mod pairing;
 mod communication;
 mod test_sign;
 mod sign_on_phone;
+mod constants;
+mod setup_ssh;
 
 use std;
 use reqwest;
@@ -24,6 +26,9 @@ use anyhow::anyhow;
 use anyhow::Result;
 use crate::pairing::pair;
 use crate::test_sign::test_sign;
+use std::path::Path;
+use crate::constants::{get_secret_key_path, get_phone_id_path, get_ssh_key_path};
+use crate::setup_ssh::setup_ssh;
 
 #[derive(Debug)]
 enum SSHAgentPacket {
@@ -36,29 +41,24 @@ fn cleanup_socket() {
     let _ = std::fs::remove_file("/tmp/test-socket").unwrap_or(());
 }
 
-fn generate_key() {
-    let mut path = dirs::home_dir().unwrap();
-    path.push(".config");
-    path.push("oca");
-    path.push("key");
+fn generate_key() -> Result<()>{
+    let path = get_secret_key_path()?;
 
     if path.exists() {
-        return
+        return Ok(())
     }
 
     let key = secretbox::gen_key();
 
     let str = base64::encode(key);
 
-    let mut file = File::create(path).unwrap();
-    file.write_all(str.as_bytes()).unwrap();
+    let mut file = File::create(path)?;
+    file.write_all(str.as_bytes())?;
+    Ok(())
 }
 
 fn read_sync_key() -> Result<secretbox::Key> {
-    let mut path = dirs::home_dir().unwrap();
-    path.push(".config");
-    path.push("oca");
-    path.push("key");
+    let path = get_secret_key_path()?;
 
     let key_str = fs::read_to_string(path).map_err(|_| anyhow!("Could not read key! Did you `pair` yet?"))?;
 
@@ -66,21 +66,17 @@ fn read_sync_key() -> Result<secretbox::Key> {
     Ok(secretbox::Key::from_slice(&decoded).unwrap())
 }
 
-fn read_sync_phone_id() -> String {
-    let mut path = dirs::home_dir().unwrap();
-    path.push(".config");
-    path.push("oca");
-    path.push("phone_id");
+fn read_sync_phone_id() -> Result<String> {
+    let path = get_phone_id_path()?;
 
-    let key_str = fs::read_to_string(path).expect("couldn't read key");
+    let key_str = fs::read_to_string(path)?;
+    let trimmed = key_str.trim().to_string();
 
-    key_str
+    Ok(trimmed)
 }
 
-fn read_key_blob() -> Vec<u8> {
-    let mut path = dirs::home_dir().unwrap();
-    path.push(".ssh");
-    path.push("id_oca.pub");
+fn read_key_blob() -> Result<Vec<u8>> {
+    let path = get_ssh_key_path()?;
 
     let contents = fs::read_to_string(path).expect("couldn't read id.pub");
     let mut iter = contents.split_whitespace();
@@ -90,11 +86,7 @@ fn read_key_blob() -> Vec<u8> {
         None => panic!("couldn't read id.pub: wrong format?")
     };
 
-    println!("{}", key_str);
-    return match base64::decode(key_str) {
-        Ok(k) => k,
-        Err(e) => panic!("couldn't decode id_oca.pub: {}", e),
-    };
+    Ok(base64::decode(key_str)?)
 }
 
 fn parse_packet(packet: &Vec<u8>) -> SSHAgentPacket {
@@ -144,7 +136,7 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
     payload.insert("relayId", &relay_id);
 
     let key = read_sync_key()?;
-    let phone_id = read_sync_phone_id();
+    let phone_id = read_sync_phone_id()?;
 
     let str = encrypt(&payload, key.clone())?;
 
@@ -198,7 +190,7 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
     Ok(())
 }
 
-fn give_identities(mut socket: UnixStream) {
+fn give_identities(mut socket: UnixStream) -> Result<()> {
     println!("giving identities");
     
     let typ = 12u8;
@@ -206,23 +198,23 @@ fn give_identities(mut socket: UnixStream) {
     let nkeys = 1u32;
 
 
-    let key_blob = read_key_blob();
+    let key_blob = read_key_blob()?;
 
     println!("{:X?}", key_blob);
     println!("{}", key_blob.len());
 
     let mut msg_payload = vec![];
-    msg_payload.write(&[typ]).unwrap();
-    msg_payload.write_u32::<BigEndian>(nkeys).unwrap();
+    msg_payload.write(&[typ])?;
+    msg_payload.write_u32::<BigEndian>(nkeys)?;
 
-    msg_payload.write_u32::<BigEndian>(key_blob.len() as u32).unwrap();
-    msg_payload.write_all(&key_blob).unwrap();
+    msg_payload.write_u32::<BigEndian>(key_blob.len() as u32)?;
+    msg_payload.write_all(&key_blob)?;
 
     let comment = "comment";
     let comment_bytes = comment.as_bytes();
     let comment_bytes_length = comment_bytes.len();
-    msg_payload.write_u32::<BigEndian>(comment_bytes_length as u32).unwrap();
-    msg_payload.write_all(comment_bytes).unwrap();
+    msg_payload.write_u32::<BigEndian>(comment_bytes_length as u32)?;
+    msg_payload.write_all(comment_bytes)?;
 
     let length = msg_payload.len() as u32;
 
@@ -230,29 +222,31 @@ fn give_identities(mut socket: UnixStream) {
     println!("length: {}", length);
     println!("{:X?}", msg_payload);
 
-    socket.write_u32::<BigEndian>(length).unwrap();
-    socket.write_all(&msg_payload).unwrap();
+    socket.write_u32::<BigEndian>(length)?;
+    socket.write_all(&msg_payload)?;
 
     println!("finished");
 
     read_and_handle_packet(socket);
+    Ok(())
 }
 
-fn read_and_handle_packet(mut socket: UnixStream) {
-    let length_bytes = socket.read_u32::<BigEndian>().unwrap();
+fn read_and_handle_packet(mut socket: UnixStream) -> Result<()>  {
+    let length_bytes = socket.read_u32::<BigEndian>()?;
 
     let mut msg = vec![0u8; length_bytes as usize];
-    socket.read_exact(&mut msg).unwrap();
+    socket.read_exact(&mut msg)?;
 
     let packet = parse_packet(&msg);
 
     match packet {
         SSHAgentPacket::RequestIdentities => 
-            give_identities(socket),
+            give_identities(socket)?,
         SSHAgentPacket::SignRequest(key_blob, data, flags) => {
-            sign_request(socket, key_blob, data, flags).unwrap();
+            sign_request(socket, key_blob, data, flags)?;
         },
     };
+    Ok(())
 }
 
 fn main() -> Result<()> {
@@ -266,6 +260,10 @@ fn main() -> Result<()> {
         return test_sign();
     }
 
+    if args.len() > 1 && args[1] == "setup-ssh" {
+        return setup_ssh();
+    }
+
     ctrlc::set_handler(move || {
         cleanup_socket();
         std::process::exit(0);
@@ -274,7 +272,7 @@ fn main() -> Result<()> {
     cleanup_socket();
     generate_key();
 
-    let listener = match UnixListener::bind("/tmp/test-socket") {
+    let listener = match UnixListener::bind("/tmp/ck-ssh-agent.sock") {
         Ok(listener) => listener,
         Err(e) => panic!("{}", e),
     };
