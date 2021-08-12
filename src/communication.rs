@@ -10,6 +10,8 @@ use serde::de::DeserializeOwned;
 use anyhow::Result;
 use serde_json::Error;
 use anyhow::anyhow;
+use std::collections::HashMap;
+use std::io::Read;
 
 
 pub fn encrypt<V: Serialize>(value: V, key: Key) -> Result<String> {
@@ -64,6 +66,28 @@ pub fn decrypt<V: DeserializeOwned>(text: String, key: Key) -> Result<V, Decrypt
     Ok(serde_json::from_str::<V>(&plaintext_str)?)
 }
 
+pub fn send_to_phone<V: Serialize>(key: Key, request: V, phone_id: String) -> Result<()> {
+    let str = encrypt(&request, key)?;
+
+    let mut map = HashMap::new();
+    map.insert("message", str);
+    map.insert("userId", phone_id);
+    let client = reqwest::blocking::Client::new();
+
+    let mut resp = client.
+        post("https://ssh-proto.s.opencreek.tech/messaging/ring")
+        .json(&map)
+        .send()?;
+
+    let mut str = String::new();
+    resp.read_to_string(&mut str)?;
+
+    if !resp.status().is_success() {
+        panic!("got {}: {}", resp.status(), str)
+    }
+
+    Ok(())
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MessageRelayResponse {

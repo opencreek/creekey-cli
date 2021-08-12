@@ -1,6 +1,6 @@
 use serde::de::DeserializeOwned;
 use anyhow::Result;
-use crate::communication::{encrypt, MessageRelayResponse, poll_for_message, decrypt};
+use crate::communication::{encrypt, MessageRelayResponse, poll_for_message, decrypt, send_to_phone};
 use std::collections::HashMap;
 use std::io::Read;
 use crate::ssh_agent::PhoneSignResponse;
@@ -16,29 +16,7 @@ struct SignRequest {
 }
 
 pub fn sign_on_phone<REQUEST: Serialize, RESPONSE: DeserializeOwned>(request: REQUEST, phone_id: String, relay_id: String, key: Key) -> Result<RESPONSE> {
-    let str = encrypt(&request, key.clone())?;
-
-    let mut map = HashMap::new();
-    map.insert("message", str);
-    map.insert("userId", phone_id);
-
-    let client = reqwest::blocking::Client::new();
-
-    println!("Waiting for phone authorization...");
-
-    let mut resp = client.
-        post("https://ssh-proto.s.opencreek.tech/messaging/ring")
-        .json(&map)
-        .send()?;
-
-    let mut str = String::new();
-    resp.read_to_string(&mut str)?;
-
-    if !resp.status().is_success() {
-        panic!("got {}: {}", resp.status(), str)
-    }
-
-    let typ = 14u8;
+    send_to_phone(key.clone(), request, phone_id)?;
 
     let phone_response: MessageRelayResponse = poll_for_message(relay_id)?;
 

@@ -6,6 +6,7 @@ mod constants;
 mod setup_ssh;
 mod ssh_agent;
 mod me;
+mod unpair;
 
 use anyhow::Result;
 use crate::pairing::pair;
