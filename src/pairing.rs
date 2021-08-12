@@ -7,7 +7,7 @@ use sodiumoxide::crypto::kx::PublicKey;
 use sodiumoxide::randombytes::randombytes;
 use sodiumoxide::crypto::kx::SecretKey;
 use crate::communication::{decrypt, poll_for_message};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use sodiumoxide::crypto::secretbox::Key;
 use std::fs;
 use std::fs::File;
