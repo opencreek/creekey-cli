@@ -15,6 +15,7 @@ use std::io::Write;
 use sodiumoxide::utils::memzero;
 use crate::constants::{get_phone_id_path, get_config_folder, get_secret_key_path, get_ssh_key_path};
 use gethostname::gethostname;
+use std::convert::TryInto;
 
 
 pub fn render_qr_code(str: &str) {
@@ -110,7 +111,8 @@ pub fn pair() -> Result<()> {
 
     let pairing_id_bytes = randombytes(32);
     let pairing_id = base64::encode_config(pairing_id_bytes, base64::URL_SAFE);
-    let client_name = gethostname().to_str().unwrap_or("Client");
+    let hostname = gethostname();
+    let client_name = hostname.to_str().unwrap_or("Client");
     let exchange = PairingRequest {
         public_key: client_pk,
         pairing_key: &pairing_id,
