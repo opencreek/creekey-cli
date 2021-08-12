@@ -9,6 +9,7 @@ use std::{str, thread, time};
 use serde::de::DeserializeOwned;
 use anyhow::Result;
 use serde_json::Error;
+use anyhow::anyhow;
 
 
 pub fn encrypt<V: Serialize>(value: V, key: Key) -> Result<String> {
@@ -70,7 +71,15 @@ pub struct MessageRelayResponse {
 }
 
 pub fn poll_for_message<V: DeserializeOwned>(relay_id: String) -> Result<V> {
+    return poll_for_message_with_timeout(relay_id, 2 * 60 * 1000)
+}
+
+pub fn poll_for_message_with_timeout<V: DeserializeOwned>(relay_id: String, timeout: u128) -> Result<V> {
+    let start = time::Instant::now();
     let response: V = loop {
+        if start.elapsed().as_millis() > timeout {
+            return Err(anyhow!("Did not receive a response"))
+        }
         thread::sleep(time::Duration::from_millis(1000));
         let resp = reqwest::blocking::get("https://ssh-proto.s.opencreek.tech/messaging/relay/".to_owned() + &relay_id);
         let found = match resp {

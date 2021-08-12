@@ -121,7 +121,7 @@ fn parse_packet(packet: &Vec<u8>) -> SSHAgentPacket {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PhoneSignResponse {
-    pub signature: String,
+    pub signature: Option<String>,
     pub accepted: bool,
 }
 
@@ -170,7 +170,6 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
 
     println!("Waiting for phone authorization...");
 
-    println!("message is {}", phone_response.message);
     let data: PhoneSignResponse = decrypt(phone_response.message, key)?;
 
     if !data.accepted {
@@ -178,7 +177,7 @@ fn sign_request(mut socket: UnixStream, key_blob: Vec<u8>, data: Vec<u8>, flags:
         panic!("No authorization given")
     }
 
-    let signature_bytes = base64::decode(data.signature)?;
+    let signature_bytes = base64::decode(data.signature.unwrap())?;
 
     let mut msg_payload = vec![];
     msg_payload.write(&[typ])?;

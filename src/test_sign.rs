@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, Context};
 use std::collections::HashMap;
 use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse};
 use crate::sign_on_phone::sign_on_phone;
@@ -21,7 +21,7 @@ pub fn test_sign() -> Result<()> {
     let response: PhoneSignResponse = sign_on_phone(payload, phone_id, relay_id, key)?;
     if response.accepted {
         println!("You accepted the request");
-        println!("{}", response.signature)
+        println!("{}", response.signature.context("No signature given!")?)
     } else {
         println!("You rejected the request!");
     }
