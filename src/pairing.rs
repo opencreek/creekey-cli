@@ -7,15 +7,15 @@ use sodiumoxide::crypto::kx::PublicKey;
 use sodiumoxide::randombytes::randombytes;
 use sodiumoxide::crypto::kx::SecretKey;
 use crate::communication::{decrypt, poll_for_message};
-use anyhow::{anyhow, Result, Context};
+use anyhow::Result;
 use sodiumoxide::crypto::secretbox::Key;
-use std::convert::TryInto;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
 use sodiumoxide::utils::memzero;
 use crate::constants::{get_phone_id_path, get_config_folder, get_secret_key_path, get_ssh_key_path};
-use std::path::Path;
+use gethostname::gethostname;
+
 
 pub fn render_qr_code(str: &str) {
     let code = QrCode::with_error_correction_level(str, EcLevel::L)
@@ -110,10 +110,11 @@ pub fn pair() -> Result<()> {
 
     let pairing_id_bytes = randombytes(32);
     let pairing_id = base64::encode_config(pairing_id_bytes, base64::URL_SAFE);
+    let client_name = gethostname().to_str().unwrap_or("Client");
     let exchange = PairingRequest {
         public_key: client_pk,
         pairing_key: &pairing_id,
-        client_name: "This is a test".to_string(),
+        client_name: client_name.into(),
         version: "0.1.0".to_string(),
     };
 
