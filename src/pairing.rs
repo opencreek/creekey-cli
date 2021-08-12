@@ -136,7 +136,7 @@ pub fn pair() -> Result<()> {
 
     write_key_to_disc(client_data.rx)?;
     write_public_ssh_to_disc(client_data.public_key_ssh)?;
-    write_phone_id_to_disc(client_data.phone_id)?;
+    write_phone_id_to_disk(client_data.phone_id)?;
 
     println!("Done!");
     println!("Run %0 setup-ssh");
@@ -144,7 +144,7 @@ pub fn pair() -> Result<()> {
     return Ok(());
 }
 
-fn write_phone_id_to_disc(phone_id: String) -> Result<()> {
+fn write_phone_id_to_disk(phone_id: String) -> Result<()> {
     let path = get_phone_id_path()?;
 
     if path.exists() {
