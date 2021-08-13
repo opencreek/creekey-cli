@@ -14,7 +14,7 @@ use std::fs::File;
 use std::io::Write;
 use sodiumoxide::utils::memzero;
 use crate::constants::{get_phone_id_path, get_config_folder, get_secret_key_path, get_ssh_key_path};
-use gethostname::gethostname;
+use whoami::{hostname, username};
 use std::convert::TryInto;
 
 
@@ -59,6 +59,8 @@ struct PairingRequest<'a> {
     pairing_key: &'a str,
     #[serde(rename = "n")]
     client_name: String,
+    #[serde(rename = "lu")]
+    local_user_name: String,
     #[serde(rename = "v")]
     version: String,
 }
@@ -111,12 +113,13 @@ pub fn pair() -> Result<()> {
 
     let pairing_id_bytes = randombytes(32);
     let pairing_id = base64::encode_config(pairing_id_bytes, base64::URL_SAFE);
-    let hostname = gethostname();
-    let client_name = hostname.to_str().unwrap_or("Client");
+    let hostname = hostname();
+    let username = username();
     let exchange = PairingRequest {
         public_key: client_pk,
         pairing_key: &pairing_id,
-        client_name: client_name.into(),
+        client_name: hostname.into(),
+        local_user_name: username.into(),
         version: "0.1.0".to_string(),
     };
 

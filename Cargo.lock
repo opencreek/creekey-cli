@@ -144,6 +144,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
+name = "colored"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3616f750b84d8f0de8a58bda93e08e2a81ad3f523089b05f1dffecab48c6cbd"
+dependencies = [
+ "atty",
+ "lazy_static",
+ "winapi",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -169,15 +180,17 @@ dependencies = [
  "byteorder",
  "clap",
  "clipboard",
+ "colored",
  "ctrlc",
  "dirs",
- "gethostname",
+ "os_pipe",
  "qrcode",
  "reqwest",
  "serde",
  "serde_json",
  "sodiumoxide",
  "thiserror",
+ "whoami",
 ]
 
 [[package]]
@@ -306,16 +319,6 @@ dependencies = [
  "pin-project-lite",
  "pin-utils",
  "slab",
-]
-
-[[package]]
-name = "gethostname"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e692e296bfac1d2533ef168d0b60ff5897b8b70a4009276834014dd8924cc028"
-dependencies = [
- "libc",
- "winapi",
 ]
 
 [[package]]
@@ -728,6 +731,16 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "os_pipe"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb233f06c2307e1f5ce2ecad9f8121cffbbee2c95428f44ea85222e460d0d213"
+dependencies = [
+ "libc",
+ "winapi",
 ]
 
 [[package]]
@@ -1320,6 +1333,16 @@ checksum = "01c70a82d842c9979078c772d4a1344685045f1a5628f677c2b2eab4dd7d2696"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "whoami"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4abacf325c958dfeaf1046931d37f2a901b6dfe0968ee965a29e94c6766b2af6"
+dependencies = [
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
