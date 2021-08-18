@@ -2,7 +2,7 @@ use crate::communication::PollError;
 use crate::output::Log;
 use crate::sign_on_phone::{sign_on_phone, SignError};
 use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::Color;
 use sodiumoxide::randombytes::randombytes;
 use std::collections::HashMap;
@@ -20,7 +20,7 @@ pub async fn test_sign() -> Result<()> {
     payload.insert("data", &base64_data);
     payload.insert("relayId", &relay_id2);
 
-    log.println("⏳ Waiting on Phone Authorization...", Color::Yellow);
+    log.println("⏳ Waiting on Phone Authorization...", Color::Yellow)?;
 
     let response: PhoneSignResponse = match sign_on_phone(payload, phone_id, relay_id, key).await {
         Ok(t) => t,
@@ -40,9 +40,9 @@ pub async fn test_sign() -> Result<()> {
         }
     };
     if response.accepted {
-        log.println("🏁 Request Accepted!", Color::Green);
+        log.println("🏁 Request Accepted!", Color::Green)?;
     } else {
-        log.println("❌ Request Rejected!", Color::Red);
+        log.println("❌ Request Rejected!", Color::Red)?;
     }
 
     Ok(())

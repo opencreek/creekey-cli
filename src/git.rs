@@ -42,8 +42,8 @@ pub async fn sign_git_commit() -> Result<()> {
     let path = env::var("GPG_TTY")?;
     check_color_tty();
 
-    let mut file = fs::OpenOptions::new().write(true).open(path)?;
-    let mut log = Log::from_file(&file);
+    let file = fs::OpenOptions::new().write(true).open(path)?;
+    let log = Log::from_file(&file);
     let mut buffer = String::new();
 
     stdin().read_to_string(&mut buffer)?;
@@ -67,7 +67,7 @@ pub async fn sign_git_commit() -> Result<()> {
                 SignError::PollError(poll_err) => {
                     if let PollError::Timeout = poll_err {
                         // There is an emoji at the beginning of that string!
-                        log.println("❌ Timed Out\n", Color::Red);
+                        log.println("❌ Timed Out\n", Color::Red)?;
                     }
                 }
                 _ => {}
@@ -85,7 +85,7 @@ pub async fn sign_git_commit() -> Result<()> {
 
     if let Some(data_base64) = response.message {
         let out = base64::decode(data_base64)?;
-        stdout().write(out.as_slice());
+        stdout().write(out.as_slice())?;
     }
 
     Ok(())

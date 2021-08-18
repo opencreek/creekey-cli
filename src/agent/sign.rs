@@ -69,9 +69,9 @@ pub async fn respond_with_failure(socket: &mut UnixStream) -> Result<()> {
 
 pub async fn sign_request(
     socket: &mut UnixStream,
-    key_blob: Vec<u8>,
+    _key_blob: Vec<u8>,
     data: Vec<u8>,
-    flags: u32,
+    _flags: u32,
     proxies: Vec<SshProxy>,
     mut remove_proxy_send: UnboundedSender<SshProxy>,
 ) -> Result<()> {
