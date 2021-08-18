@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use sodiumoxide::randombytes::randombytes;
 use std::collections::HashMap;
 
-pub fn test_sign() -> Result<()> {
+pub async fn test_sign() -> Result<()> {
     let key = read_sync_key()?;
     let phone_id = read_sync_phone_id()?;
     let relay_id = base64::encode_config(randombytes(32), base64::URL_SAFE);
@@ -17,7 +17,7 @@ pub fn test_sign() -> Result<()> {
     payload.insert("data", &base64_data);
     payload.insert("relayId", &relay_id2);
 
-    let response: PhoneSignResponse = sign_on_phone(payload, phone_id, relay_id, key)?;
+    let response: PhoneSignResponse = sign_on_phone(payload, phone_id, relay_id, key).await?;
     if response.accepted {
         println!("You accepted the request");
         println!("{}", response.signature.context("No signature given!")?)

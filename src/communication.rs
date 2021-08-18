@@ -1,15 +1,13 @@
-use anyhow::anyhow;
 use anyhow::Result;
 use base64::DecodeError;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use serde_json::Error;
+
 use sodiumoxide::crypto::secretbox;
 use sodiumoxide::crypto::secretbox::Key;
 use sodiumoxide::crypto::secretbox::Nonce;
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::io::Read;
 use std::{str, thread, time};
 use thiserror::Error;
 
@@ -66,24 +64,25 @@ pub fn decrypt<V: DeserializeOwned>(text: String, key: Key) -> Result<V, Decrypt
     Ok(serde_json::from_str::<V>(&plaintext_str)?)
 }
 
-pub fn send_to_phone<V: Serialize>(key: Key, request: V, phone_id: String) -> Result<()> {
+pub async fn send_to_phone<V: Serialize>(key: Key, request: V, phone_id: String) -> Result<()> {
     let str = encrypt(&request, key)?;
 
     let mut map = HashMap::new();
     map.insert("message", str);
     map.insert("userId", phone_id);
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::Client::new();
 
-    let mut resp = client
+    let resp = client
         .post("https://ssh-proto.s.opencreek.tech/messaging/ring")
         .json(&map)
-        .send()?;
+        .send()
+        .await?;
 
-    let mut str = String::new();
-    resp.read_to_string(&mut str)?;
 
-    if !resp.status().is_success() {
-        panic!("got {}: {}", resp.status(), str)
+    let status = resp.status();
+    if !status.is_success() {
+        let str = resp.text().await?;
+        panic!("got {}: {}",status, str)
     }
 
     Ok(())
@@ -94,25 +93,34 @@ pub struct MessageRelayResponse {
     pub message: String,
 }
 
-pub async fn poll_for_message<V: DeserializeOwned>(relay_id: String) -> Result<V> {
-    poll_for_message_with_timeout(relay_id, 2 * 60 * 1000).await
+#[derive(Error, Debug)]
+pub enum PollError {
+    #[error("timeout error")]
+    Timeout,
+    #[error("Network Error")]
+    NetworkError(#[from] reqwest::Error)
+
 }
 
+
+pub async fn poll_for_message<V: DeserializeOwned>(relay_id: String) -> Result<V, PollError> {
+    poll_for_message_with_timeout(relay_id, 2 * 10 * 1000).await
+}
 pub async fn poll_for_message_with_timeout<V: DeserializeOwned>(
     relay_id: String,
     timeout: u128,
-) -> Result<V> {
+) -> Result<V, PollError> {
     let start = time::Instant::now();
     let response: V = loop {
         if start.elapsed().as_millis() > timeout {
-            return Err(anyhow!("Did not receive a response"));
+            return Err(PollError::Timeout);
         }
         thread::sleep(time::Duration::from_millis(1000));
         let resp = reqwest::get(
             "https://ssh-proto.s.opencreek.tech/messaging/relay/".to_owned() + &relay_id,
         )
         .await;
-        let found = match resp {
+        let _found = match resp {
             Ok(a) => {
                 if a.status().as_u16() != 404 {
                     break a.json::<V>().await?;

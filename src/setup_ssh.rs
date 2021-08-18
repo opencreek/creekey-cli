@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::{Read, Write};
 
 pub fn setup_ssh() -> Result<()> {
@@ -15,7 +15,7 @@ pub fn setup_ssh() -> Result<()> {
         .open(path.clone())?;
 
     let mut str: String = String::new();
-    file.read_to_string(&mut str);
+    file.read_to_string(&mut str)?;
 
     if str.contains("creekey") {
         return Ok(());

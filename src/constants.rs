@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 static CONFIG_FOLDER: &'static str = ".config/creekey";
 static SECRET_KEY_PATH: &'static str = "key";

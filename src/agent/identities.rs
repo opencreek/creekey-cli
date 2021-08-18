@@ -1,8 +1,7 @@
-use crate::agent::handle::read_and_handle_packet;
-use crate::ssh_agent::{read_key_blob, SshProxy};
+use crate::ssh_agent::read_key_blob;
 use anyhow::Result;
 use byteorder::{BigEndian, WriteBytesExt};
-use futures::channel::mpsc::UnboundedSender;
+
 use std::io::Write;
 use tokio::net::UnixStream;
 

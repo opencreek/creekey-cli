@@ -1,11 +1,11 @@
 use crate::communication::send_to_phone;
-use crate::constants::{get_phone_id_path, get_secret_key_path};
-use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse};
+
+use crate::ssh_agent::{read_sync_key, read_sync_phone_id};
 use anyhow::Result;
 use sodiumoxide::randombytes::randombytes;
 use std::collections::HashMap;
 
-pub fn unpair() -> Result<()> {
+pub async fn unpair() -> Result<()> {
     let key = read_sync_key()?;
     let phone_id = read_sync_phone_id()?;
 
@@ -17,7 +17,7 @@ pub fn unpair() -> Result<()> {
     payload.insert("data", "");
     payload.insert("relayId", &relay_id2);
 
-    send_to_phone(key, payload, phone_id);
+    send_to_phone(key, payload, phone_id).await?;
 
     Ok(())
 }

@@ -16,19 +16,10 @@ use crate::setup_ssh::setup_ssh;
 use crate::ssh_agent::start_agent;
 use crate::ssh_proxy::start_ssh_proxy;
 use crate::test_sign::test_sign;
+use crate::unpair::unpair;
 use anyhow::Result;
-use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use clap::{clap_app, ArgMatches};
-use futures::executor::block_on;
-use os_pipe::{dup_stdin, dup_stdout, pipe};
-use std::convert::TryInto;
-use std::fs::File;
-use std::io;
-use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{Shutdown, TcpStream};
-use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
+
+use clap::clap_app;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -41,6 +32,9 @@ async fn main() -> Result<()> {
         )
         (@subcommand pair =>
             (about: "Pair with a phone")
+        )
+        (@subcommand unpair =>
+            (about: "unpairs this phone")
         )
         (@subcommand me =>
             (about: "Prints the Public SSH key")
@@ -62,7 +56,8 @@ async fn main() -> Result<()> {
 
     return match matches.subcommand() {
         ("pair", _) => pair(),
-        ("test", _) => test_sign(),
+        ("unpair", _) => unpair().await,
+        ("test", _) => test_sign().await,
         ("setupssh", _) => setup_ssh(),
         ("me", Some(matches)) => print_ssh_key(matches.is_present("copy")),
         ("agent", _) => start_agent().await,

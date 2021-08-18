@@ -1,24 +1,21 @@
-use anyhow::Context;
-use anyhow::Result;
+use anyhow::{Result, Context};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use clap::ArgMatches;
 use colored::Colorize;
 use os_pipe::{dup_stderr, dup_stdin, dup_stdout};
-use sha2::{Digest, Sha256};
-use sodiumoxide::crypto::sign::ed25519::Signature;
-use sodiumoxide::crypto::sign::PublicKey;
+
 use ssh_parser::SshPacket;
 use std::convert::TryInto;
-use std::fs::File;
-use std::io::{BufRead, BufReader, Cursor, Read, Stderr, Write};
+
+use std::io::{Cursor, Read, Write};
 use std::net::{Shutdown, TcpStream};
-use std::ops::Shl;
-use std::os;
+
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::{Command, Stdio};
-use std::sync::mpsc::{self, Receiver, TryRecvError};
+
 use std::thread;
 use std::time::Duration;
+
 
 fn start_logger_proxy() -> Result<String> {
     let random = base64::encode_config(sodiumoxide::randombytes::randombytes(8), base64::URL_SAFE);
@@ -67,49 +64,48 @@ fn send_info_packet(host: &str, socket_path: &str, signature: &[u8], key: &[u8])
     stream.write_u32::<BigEndian>(
         (1 + 4 + host.len() + 4 + socket_path.len() + 4 + signature.len() + 4 + key.len())
             .try_into()?,
-    );
-    stream.write_u8(254);
+    )?;
+    stream.write_u8(254)?;
 
-    stream.write_u32::<BigEndian>(host.len().try_into()?);
+    stream.write_u32::<BigEndian>(host.len().try_into()?)?;
     stream.write_all(host.as_bytes())?;
 
-    stream.write_u32::<BigEndian>(socket_path.len().try_into()?);
+    stream.write_u32::<BigEndian>(socket_path.len().try_into()?)?;
     stream.write_all(socket_path.as_bytes())?;
 
-    stream.write_u32::<BigEndian>(signature.len().try_into()?);
+    stream.write_u32::<BigEndian>(signature.len().try_into()?)?;
     stream.write_all(signature)?;
 
-    stream.write_u32::<BigEndian>(key.len().try_into()?);
+    stream.write_u32::<BigEndian>(key.len().try_into()?)?;
     stream.write_all(key)?;
 
-    stream.flush();
+    stream.flush()?;
 
     stream.shutdown(Shutdown::Both)?;
 
     Ok(())
 }
 
-pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
-    // let signature_data = std::fs::read("signature.data")?;
-    // let signature = Signature::new(signature_data.as_slice().try_into()?);
-    // let session_data = std::fs::read("session.data")?;
-    // let key_data = std::fs::read("server-key.pub")?;
-    //
-    // eprintln!("keydata: {:X?}", key_data);
-    // eprintln!("session: {:X?}", session_data);
-    // eprintln!("signature: {:X?}", signature_data);
-    //
-    // let pub_key = &PublicKey::from_slice(key_data.as_slice()).context("no key")?;
-    // let verified =
-    //     sodiumoxide::crypto::sign::verify_detached(&signature, session_data.as_slice(), pub_key);
-    // eprintln!("verification: {}", verified);
 
+fn parse_second_string(cursor: &mut Cursor<&[u8]>) -> Result<Vec<u8>> {
+    let first_size = cursor.read_i32::<BigEndian>()?;
+    let mut buffer_first = vec![0u8; first_size as usize];
+    cursor.read_exact(&mut buffer_first)?;
+
+    let ret_length = cursor.read_i32::<BigEndian>()?;
+    let mut ret = vec![0u8; ret_length as usize];
+    cursor.read_exact(&mut ret)?;
+
+    return Ok(ret)
+}
+
+fn check_running_ssh_agent() -> Result<()> {
     if !is_agent_running()? {
         eprintln!("{}", "Starting Daemon...".red().to_string());
         let self_arg = &std::env::args().collect::<Vec<String>>()[0];
         eprintln!("{}", self_arg);
 
-        let child = Command::new(self_arg)
+        let _child = Command::new(self_arg)
             .arg("agent")
             .stdout(Stdio::null())
             .stdin(Stdio::null())
@@ -119,28 +115,33 @@ pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
 
         thread::sleep(Duration::from_millis(1000))
     }
+    Ok(())
+}
+
+pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
     let socket_path = start_logger_proxy()?;
 
-    let host = matches.value_of("host").unwrap();
-    let port = matches.value_of("port").unwrap();
+    check_running_ssh_agent()?;
+
+    let host = matches.value_of("host").context("No host given for proxy.")?;
+        let port = matches.value_of("port").context("No port given for proxy")?;
 
     let host_name = String::new() + host + ":" + port;
 
-    let mut stream = TcpStream::connect(host_name.clone())?;
+    let stream = TcpStream::connect(host_name.clone())?;
     let mut in_stream = stream.try_clone()?;
     let mut out_stream = stream.try_clone()?;
 
     let in_thread = std::thread::spawn(move || {
         let mut sout = dup_stdout().unwrap();
         loop {
-            // let byte = in_stream.read_u8().unwrap();
-            // sout.write_u8(byte);
-
             let mut data = [0u8; 0x10000usize];
             let host_name = host_name.clone();
             let socket = socket_path.clone();
+
             let length = in_stream.read(&mut data).unwrap();
             let (received, _) = data.split_at(length);
+
             if received.len() > 0 {
                 let result = ssh_parser::parse_ssh_packet(received);
                 match result {
@@ -148,29 +149,12 @@ pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
                         let (packet, _) = parsed_data;
                         match packet {
                             SshPacket::DiffieHellmanReply(init) => {
-                                let mut hasher = Sha256::new();
                                 let mut cursor = Cursor::new(init.pubkey_and_cert);
-
-                                let first_size = cursor.read_i32::<BigEndian>().unwrap();
-                                let mut buffer_first = vec![0u8; first_size as usize];
-                                cursor.read_exact(&mut buffer_first).unwrap();
-
-                                let key_length = cursor.read_i32::<BigEndian>().unwrap();
-                                let mut key = vec![0u8; key_length as usize];
-                                cursor.read_exact(&mut key).unwrap();
+                                let key = parse_second_string(&mut cursor).unwrap();
 
                                 let mut cursor_sig = Cursor::new(init.signature);
+                                let signature = parse_second_string(&mut cursor_sig).unwrap();
 
-                                let first_size_2 = cursor_sig.read_i32::<BigEndian>().unwrap();
-                                let mut buffer_first_2 = vec![0u8; first_size_2 as usize];
-                                cursor_sig.read_exact(&mut buffer_first_2).unwrap();
-
-                                let signature_size = cursor_sig.read_i32::<BigEndian>().unwrap();
-                                let mut signature = vec![0u8; signature_size as usize];
-                                cursor_sig.read_exact(&mut signature).unwrap();
-
-                                hasher.update(init.signature);
-                                let hash = hasher.finalize();
                                 send_info_packet(
                                     &host_name,
                                     &socket,

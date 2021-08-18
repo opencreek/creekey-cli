@@ -4,11 +4,10 @@ use crate::ssh_agent::SshProxy;
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use futures::channel::mpsc::UnboundedSender;
-use futures::{Future, SinkExt};
+use futures::SinkExt;
 use std::io::{Cursor, Read};
-use std::pin::Pin;
+
 use tokio::net::UnixStream;
-use tokio::sync::mpsc::Sender;
 
 #[derive(Debug)]
 pub enum SSHAgentPacket {
@@ -19,7 +18,7 @@ pub enum SSHAgentPacket {
     HostName(String, String, Vec<u8>, Vec<u8>),
 }
 
-pub fn parse_packet(packet: &Vec<u8>, socket: &mut UnixStream) -> SSHAgentPacket {
+pub fn parse_packet(packet: &Vec<u8>, _socket: &mut UnixStream) -> SSHAgentPacket {
     println!("parsing packet!");
     println!("{:X?}", packet);
     let mut cursor = Cursor::new(packet);
@@ -77,7 +76,7 @@ pub async fn read_and_handle_packet(
     socket: &mut UnixStream,
     proxies: Vec<SshProxy>,
     mut new_proxy_send: UnboundedSender<SshProxy>,
-    mut remove_proxy_send: UnboundedSender<SshProxy>,
+    remove_proxy_send: UnboundedSender<SshProxy>,
 ) -> Result<()> {
     loop {
         let length_bytes = tokio::io::AsyncReadExt::read_i32(socket).await?;
@@ -93,7 +92,7 @@ pub async fn read_and_handle_packet(
                 give_identities(socket).await?;
             }
             SSHAgentPacket::SignRequest(key_blob, data, flags) => {
-                let proxy = sign_request(
+                let _proxy = sign_request(
                     socket,
                     key_blob,
                     data,
@@ -111,7 +110,7 @@ pub async fn read_and_handle_packet(
                         signature,
                         key,
                     })
-                    .await;
+                    .await?;
             }
         }
     }
