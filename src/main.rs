@@ -2,6 +2,7 @@ mod agent;
 mod communication;
 mod constants;
 mod me;
+mod output;
 mod pairing;
 mod setup_ssh;
 mod sign_on_phone;
@@ -9,7 +10,6 @@ mod ssh_agent;
 mod ssh_proxy;
 mod test_sign;
 mod unpair;
-mod output;
 
 use crate::me::print_ssh_key;
 use crate::pairing::pair;
@@ -20,11 +20,11 @@ use crate::test_sign::test_sign;
 use crate::unpair::unpair;
 use anyhow::Result;
 
-use clap::clap_app;
+use clap::{clap_app, AppSettings};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let matches = clap_app!(creekey =>
+    let mut app = clap_app!(creekey =>
         (version: "0.1.0")
         (author: "Opencreek Technogoly UG - opencreek.tech")
         (about: "Secures your private keys on your phone")
@@ -55,11 +55,13 @@ async fn main() -> Result<()> {
             (@arg host: "The host to connect to")
             (@arg port: "The port to connect to")
         )
-    )
-    .get_matches();
+    );
+    app = app.clone().setting(AppSettings::ColorAlways);
+    app = app.clone().setting(AppSettings::ColoredHelp);
+    let matches = app.clone().get_matches();
 
     return match matches.subcommand() {
-        ("pair", _) => pair(),
+        ("pair", _) => pair().await,
         ("unpair", _) => unpair().await,
         // ("testgpg", _) => sign_git_commit().await,
         ("test", _) => test_sign().await,
@@ -67,6 +69,9 @@ async fn main() -> Result<()> {
         ("me", Some(matches)) => print_ssh_key(matches.is_present("copy")),
         ("agent", _) => start_agent().await,
         ("proxy", Some(matches)) => start_ssh_proxy(matches),
-        _ => unreachable!(),
+        _ => {
+            app.print_help()?;
+            Ok(())
+        }
     };
 }

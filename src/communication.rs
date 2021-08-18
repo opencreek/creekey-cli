@@ -78,11 +78,10 @@ pub async fn send_to_phone<V: Serialize>(key: Key, request: V, phone_id: String)
         .send()
         .await?;
 
-
     let status = resp.status();
     if !status.is_success() {
         let str = resp.text().await?;
-        panic!("got {}: {}",status, str)
+        panic!("got {}: {}", status, str)
     }
 
     Ok(())
@@ -98,10 +97,8 @@ pub enum PollError {
     #[error("timeout error")]
     Timeout,
     #[error("Network Error")]
-    NetworkError(#[from] reqwest::Error)
-
+    NetworkError(#[from] reqwest::Error),
 }
-
 
 pub async fn poll_for_message<V: DeserializeOwned>(relay_id: String) -> Result<V, PollError> {
     poll_for_message_with_timeout(relay_id, 2 * 10 * 1000).await

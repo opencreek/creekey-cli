@@ -1,16 +1,13 @@
-use colored::{Color, Colorize};
-use std::io::Write;
 use anyhow::Result;
-use std::fs::File;
-use std::os::unix::net::UnixStream;
-use futures::AsyncWriteExt;
+use colored::{Color, Colorize};
 use std::env;
-
+use std::fs::File;
+use std::io::Write;
+use std::os::unix::net::UnixStream;
 
 pub struct Log<'a> {
     file: Option<&'a File>,
     stream: Option<&'a UnixStream>,
-
 }
 
 pub fn string_log(line: &str, color: Color) -> String {
@@ -45,7 +42,10 @@ impl<'a> Log<'a> {
             stream: Some(stream),
         }
     }
-    pub const NONE: Log<'a> = Log { file: None, stream: None };
+    pub const NONE: Log<'a> = Log {
+        file: None,
+        stream: None,
+    };
 }
 
 pub fn check_color_tty() {
@@ -54,7 +54,7 @@ pub fn check_color_tty() {
         Ok(x) => {
             eprintln!("NO_COLOR found: {}", x);
             colored::control::set_override(false);
-        },
+        }
         _ => {}
     };
 }

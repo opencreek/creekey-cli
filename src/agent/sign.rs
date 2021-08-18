@@ -1,9 +1,11 @@
-use crate::communication::{decrypt, poll_for_message, MessageRelayResponse, send_to_phone, PollError};
+use crate::communication::{
+    decrypt, poll_for_message, send_to_phone, MessageRelayResponse, PollError,
+};
 use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse, SshProxy};
 
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
-use colored::{Colorize, Color};
+use colored::Color;
 use futures::channel::mpsc::UnboundedSender;
 use futures::SinkExt;
 
@@ -13,10 +15,10 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::{Cursor, Read};
 
-use tokio::net::UnixStream;
-use tokio::io::AsyncWriteExt;
-use tokio::time::{sleep, Duration};
 use crate::output::Log;
+use tokio::io::AsyncWriteExt;
+use tokio::net::UnixStream;
+use tokio::time::{sleep, Duration};
 
 fn parse_user_name(data: Vec<u8>) -> Result<String> {
     let mut cursor = Cursor::new(data);
@@ -87,12 +89,12 @@ pub async fn sign_request(
 
     let stream: std::os::unix::net::UnixStream;
 
-    let mut log = match proxy.clone() {
+    let log = match proxy.clone() {
         Some(it) => {
             stream = std::os::unix::net::UnixStream::connect(it.logger_socket)?;
             Log::from_stream(&stream)
         }
-        None => Log::NONE
+        None => Log::NONE,
     };
 
     let name = parse_user_name(data.clone()).unwrap();
@@ -119,13 +121,18 @@ pub async fn sign_request(
 
     log.println(
         "⏳ Waiting for phone authorization ...",
-        Color::TrueColor { r: 239, b: 1, g: 154 },
-    );
+        Color::TrueColor {
+            r: 239,
+            b: 1,
+            g: 154,
+        },
+    )?;
     send_to_phone(key.clone(), payload, phone_id).await?;
 
     let typ = 14u8;
 
-    let polling_response: Result<MessageRelayResponse, PollError> = poll_for_message(relay_id).await;
+    let polling_response: Result<MessageRelayResponse, PollError> =
+        poll_for_message(relay_id).await;
 
     let phone_response = match polling_response {
         Ok(t) => t,
@@ -133,7 +140,7 @@ pub async fn sign_request(
             match e {
                 PollError::Timeout => {
                     // there is an X emoji at the start of the string
-                    log.println("❌ Timed out", Color::Red);
+                    log.println("❌ Timed out", Color::Red)?;
                 }
                 _ => {}
             }
@@ -148,12 +155,12 @@ pub async fn sign_request(
     let data: PhoneSignResponse = decrypt(phone_response.message, key)?;
 
     if !data.accepted {
-        log.println("❌ Request was denied", Color::Red);
+        log.println("❌ Request was denied", Color::Red)?;
         respond_with_failure(socket).await?;
         return Ok(());
     }
 
-    log.println("🏁 Accepted request", Color::Green);
+    log.println("🏁 Accepted request", Color::Green)?;
 
     let signature_bytes = base64::decode(data.signature.unwrap())?;
     println!("responding to socket with authorization");

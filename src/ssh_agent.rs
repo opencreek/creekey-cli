@@ -3,17 +3,15 @@ use crate::constants::{get_phone_id_path, get_secret_key_path, get_ssh_key_path}
 use anyhow::Result;
 use anyhow::{anyhow, Context};
 
-
 use daemonize::Daemonize;
 use futures::channel::mpsc::unbounded;
 
-use futures::{StreamExt};
+use futures::StreamExt;
 
 use serde::{Deserialize, Serialize};
 use sodiumoxide::crypto::secretbox;
 
 use std;
-
 
 use std::fs;
 use std::sync::{Arc, Mutex};

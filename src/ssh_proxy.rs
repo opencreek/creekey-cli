@@ -1,4 +1,4 @@
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use clap::ArgMatches;
 use colored::Colorize;
@@ -15,7 +15,6 @@ use std::process::{Command, Stdio};
 
 use std::thread;
 use std::time::Duration;
-
 
 fn start_logger_proxy() -> Result<String> {
     let random = base64::encode_config(sodiumoxide::randombytes::randombytes(8), base64::URL_SAFE);
@@ -36,7 +35,7 @@ fn start_logger_proxy() -> Result<String> {
                         if let Ok(byte) = res {
                             if byte != 255 {
                                 // filter out checking byte
-                                serr.write_u8(byte);
+                                serr.write_u8(byte).unwrap();
                             }
                         }
                     }
@@ -86,7 +85,6 @@ fn send_info_packet(host: &str, socket_path: &str, signature: &[u8], key: &[u8])
     Ok(())
 }
 
-
 fn parse_second_string(cursor: &mut Cursor<&[u8]>) -> Result<Vec<u8>> {
     let first_size = cursor.read_i32::<BigEndian>()?;
     let mut buffer_first = vec![0u8; first_size as usize];
@@ -96,7 +94,7 @@ fn parse_second_string(cursor: &mut Cursor<&[u8]>) -> Result<Vec<u8>> {
     let mut ret = vec![0u8; ret_length as usize];
     cursor.read_exact(&mut ret)?;
 
-    return Ok(ret)
+    return Ok(ret);
 }
 
 fn check_running_ssh_agent() -> Result<()> {
@@ -123,8 +121,12 @@ pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
 
     check_running_ssh_agent()?;
 
-    let host = matches.value_of("host").context("No host given for proxy.")?;
-        let port = matches.value_of("port").context("No port given for proxy")?;
+    let host = matches
+        .value_of("host")
+        .context("No host given for proxy.")?;
+    let port = matches
+        .value_of("port")
+        .context("No port given for proxy")?;
 
     let host_name = String::new() + host + ":" + port;
 
