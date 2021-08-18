@@ -30,3 +30,11 @@ ssh-parser="0.4.0"
 sha2="0.9.5"
 futures="0.3"
 tokio= { version = "1.10.0", features=["full"]}
+
+[[bin]]
+name = "git-sign"
+path = "src/git.rs"
+
+[[bin]]
+name = "creekey"
+path = "src/main.rs"

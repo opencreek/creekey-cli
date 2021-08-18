@@ -9,6 +9,7 @@ mod ssh_agent;
 mod ssh_proxy;
 mod test_sign;
 mod unpair;
+mod output;
 
 use crate::me::print_ssh_key;
 use crate::pairing::pair;
@@ -32,6 +33,9 @@ async fn main() -> Result<()> {
         )
         (@subcommand pair =>
             (about: "Pair with a phone")
+        )
+        (@subcommand testgpg =>
+            (about: "test command ")
         )
         (@subcommand unpair =>
             (about: "unpairs this phone")
@@ -57,6 +61,7 @@ async fn main() -> Result<()> {
     return match matches.subcommand() {
         ("pair", _) => pair(),
         ("unpair", _) => unpair().await,
+        // ("testgpg", _) => sign_git_commit().await,
         ("test", _) => test_sign().await,
         ("setupssh", _) => setup_ssh(),
         ("me", Some(matches)) => print_ssh_key(matches.is_present("copy")),
