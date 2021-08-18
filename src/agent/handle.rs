@@ -93,16 +93,25 @@ pub async fn read_and_handle_packet(
                 give_identities(socket).await?;
             }
             SSHAgentPacket::SignRequest(key_blob, data, flags) => {
-                let proxy = sign_request(socket, key_blob, data, flags, proxies.clone(), remove_proxy_send.clone()).await?;
+                let proxy = sign_request(
+                    socket,
+                    key_blob,
+                    data,
+                    flags,
+                    proxies.clone(),
+                    remove_proxy_send.clone(),
+                )
+                .await?;
             }
             SSHAgentPacket::HostName(name, logger, signature, key) => {
-                new_proxy_send.send(SshProxy {
-                    host: name,
-                    logger_socket: logger,
-                    signature,
-                    key,
-                })
-                .await;
+                new_proxy_send
+                    .send(SshProxy {
+                        host: name,
+                        logger_socket: logger,
+                        signature,
+                        key,
+                    })
+                    .await;
             }
         }
     }

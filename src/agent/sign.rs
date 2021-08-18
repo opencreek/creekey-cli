@@ -5,6 +5,9 @@ use anyhow::Context;
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use colored::Colorize;
+use futures::channel::mpsc::UnboundedSender;
+use futures::SinkExt;
+use reqwest::Proxy;
 use sodiumoxide::crypto::sign::{self, PublicKey, Signature};
 use sodiumoxide::randombytes::randombytes;
 use std::collections::HashMap;
@@ -13,9 +16,6 @@ use std::fs::File;
 use std::io::{Cursor, Read, Write};
 use std::pin::Pin;
 use tokio::net::UnixStream;
-use reqwest::Proxy;
-use futures::channel::mpsc::UnboundedSender;
-use futures::SinkExt;
 
 fn parse_user_name(data: Vec<u8>) -> Result<String> {
     let mut cursor = Cursor::new(data);

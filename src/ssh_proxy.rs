@@ -109,8 +109,7 @@ pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
         let self_arg = &std::env::args().collect::<Vec<String>>()[0];
         eprintln!("{}", self_arg);
 
-        let child = Command::new("nohup")
-            .arg(self_arg)
+        let child = Command::new(self_arg)
             .arg("agent")
             .stdout(Stdio::null())
             .stdin(Stdio::null())
@@ -126,7 +125,6 @@ pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
     let port = matches.value_of("port").unwrap();
 
     let host_name = String::new() + host + ":" + port;
-
 
     let mut stream = TcpStream::connect(host_name.clone())?;
     let mut in_stream = stream.try_clone()?;
