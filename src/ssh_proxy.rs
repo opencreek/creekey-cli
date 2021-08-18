@@ -35,10 +35,12 @@ fn start_logger_proxy() -> Result<String> {
             match stream {
                 Ok(mut socket) => {
                     loop {
-                        let byte = socket.read_u8().unwrap();
-                        if byte != 255 {
-                            // filter out checking byte
-                            serr.write_u8(byte);
+                        let res = socket.read_u8();
+                        if let Ok(byte) = res {
+                            if byte != 255 {
+                                // filter out checking byte
+                                serr.write_u8(byte);
+                            }
                         }
                     }
                 }
