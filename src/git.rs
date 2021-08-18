@@ -18,10 +18,10 @@ use crate::ssh_agent::{read_sync_phone_id, read_sync_key};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use sodiumoxide::randombytes::randombytes;
-use crate::output::{log, string_log};
 use colored::Color;
 use crate::communication::PollError;
 use std::fs;
+use crate::output::{Log, check_color_tty};
 use std::env;
 
 
@@ -41,13 +41,17 @@ struct GgpResponse {
 }
 
 pub async fn sign_git_commit() -> Result<()> {
-    colored::control::set_override(true);
     let path = env::var("GPG_TTY")?;
+    check_color_tty();
+
     let mut file = fs::OpenOptions::new().write(true).open(path)?;
+    let mut log = Log::from_file(&file);
     let mut buffer = String::new();
+
     stdin().read_to_string(&mut buffer)?;
 
     let base64_data = base64::encode(&buffer);
+
 
     let phone_id = read_sync_phone_id()?;
     let relay_id = base64::encode_config(randombytes(32), base64::URL_SAFE);
@@ -58,7 +62,7 @@ pub async fn sign_git_commit() -> Result<()> {
         relay_id: relay_id.clone(),
     };
 
-    file.write_all(string_log("⏳ Waiting on Phone Authorization...\n", Color::Yellow).as_bytes());
+    log.println("⏳ Waiting on Phone Authorization...", Color::Yellow);
     let response: GgpResponse = match sign_on_phone(request, phone_id, relay_id, key).await {
         Ok(t) => t,
         Err(e) => {
@@ -66,7 +70,7 @@ pub async fn sign_git_commit() -> Result<()> {
                 SignError::PollError(poll_err) => {
                     if let PollError::Timeout = poll_err {
                         // There is an emoji at the beginning of that string!
-                        file.write_all(string_log("❌ Timed Out\n", Color::Red).as_bytes());
+                        log.println("❌ Timed Out\n", Color::Red);
                     }
                 },
                 _ => {}
@@ -77,9 +81,10 @@ pub async fn sign_git_commit() -> Result<()> {
 
     if !response.accepted {
         eprintln!("Not accepted!");
+        log.println("⏳ Not Accepted", Color::Green);
         return Ok(());
     }
-    file.write_all(string_log("⏳ Accepted\n", Color::Green).as_bytes());
+    log.println("⏳ Accepted", Color::Green);
 
 
     if let Some(data_base64) = response.message {

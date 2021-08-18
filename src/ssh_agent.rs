@@ -22,6 +22,7 @@ use tokio::select;
 use tokio::task;
 
 use crate::agent::handle::read_and_handle_packet;
+use crate::output::check_color_tty;
 
 fn cleanup_socket() {
     let _ = std::fs::remove_file("/tmp/ck-ssh-agent.sock").unwrap_or(());
@@ -84,6 +85,7 @@ pub struct PhoneSignResponse {
 pub async fn start_agent() -> Result<()> {
     let _daemonize = Daemonize::new().pid_file("/tmp/ck-agent.pid");
 
+    check_color_tty();
     // daemonize.start()?;
 
     proctitle::set_title("creekey-agent");

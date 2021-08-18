@@ -3,7 +3,7 @@ use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse, Ssh
 
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
-use colored::Colorize;
+use colored::{Colorize, Color};
 use futures::channel::mpsc::UnboundedSender;
 use futures::SinkExt;
 
@@ -16,6 +16,7 @@ use std::io::{Cursor, Read};
 use tokio::net::UnixStream;
 use tokio::io::AsyncWriteExt;
 use tokio::time::{sleep, Duration};
+use crate::output::Log;
 
 fn parse_user_name(data: Vec<u8>) -> Result<String> {
     let mut cursor = Cursor::new(data);
@@ -33,23 +34,6 @@ fn parse_user_name(data: Vec<u8>) -> Result<String> {
     println!("{:X?}", name);
 
     Ok(String::from_utf8(name)?)
-}
-
-struct Log<'a> {
-    stream: Option<&'a std::os::unix::net::UnixStream>,
-}
-
-impl<'a> Log<'a> {
-    pub fn println(&mut self, line: String) {
-        println!("{}", line);
-        match self.stream {
-            Some(mut it) => {
-                std::io::Write::write_all(&mut it, line.as_bytes()).unwrap();
-                std::io::Write::write_all(&mut it, "\n".as_bytes()).unwrap();
-            }
-            None => (),
-        }
-    }
 }
 
 fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProxy> {
@@ -106,11 +90,9 @@ pub async fn sign_request(
     let mut log = match proxy.clone() {
         Some(it) => {
             stream = std::os::unix::net::UnixStream::connect(it.logger_socket)?;
-            Log {
-                stream: Some(&stream),
-            }
+            Log::from_stream(&stream)
         }
-        None => Log { stream: None },
+        None => Log::NONE
     };
 
     let name = parse_user_name(data.clone()).unwrap();
@@ -136,9 +118,8 @@ pub async fn sign_request(
     let phone_id = read_sync_phone_id()?;
 
     log.println(
-        "creekey ⏳ Waiting for phone authorization ..."
-            .truecolor(239, 1, 154)
-            .to_string(),
+        "⏳ Waiting for phone authorization ...",
+        Color::TrueColor { r: 239, b: 1, g: 154 },
     );
     send_to_phone(key.clone(), payload, phone_id).await?;
 
@@ -146,14 +127,13 @@ pub async fn sign_request(
 
     let polling_response: Result<MessageRelayResponse, PollError> = poll_for_message(relay_id).await;
 
-    let phone_response = match polling_response{
+    let phone_response = match polling_response {
         Ok(t) => t,
         Err(e) => {
             match e {
                 PollError::Timeout => {
-                    // There is an cross emoji between these lines
-                    //                      ||
-                    log.println("creekey ❌ Timed out".red().to_string());
+                    // there is an X emoji at the start of the string
+                    log.println("❌ Timed out", Color::Red);
                 }
                 _ => {}
             }
@@ -168,12 +148,12 @@ pub async fn sign_request(
     let data: PhoneSignResponse = decrypt(phone_response.message, key)?;
 
     if !data.accepted {
-        println!("Request was denied!");
+        log.println("❌ Request was denied", Color::Red);
         respond_with_failure(socket).await?;
         return Ok(());
     }
 
-    log.println("creekey 🏁 Accepted request".green().to_string());
+    log.println("🏁 Accepted request", Color::Green);
 
     let signature_bytes = base64::decode(data.signature.unwrap())?;
     println!("responding to socket with authorization");
