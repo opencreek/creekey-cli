@@ -1,36 +1,36 @@
-use qrcode::{QrCode, EcLevel};
-use qrcode::render::unicode;
-use sodiumoxide::crypto::kx;
-use serde_json;
-use serde::{Serialize, Deserialize };
-use sodiumoxide::crypto::kx::PublicKey;
-use sodiumoxide::randombytes::randombytes;
-use sodiumoxide::crypto::kx::SecretKey;
 use crate::communication::{decrypt, poll_for_message};
+use crate::constants::{
+    get_config_folder, get_phone_id_path, get_secret_key_path, get_ssh_key_path,
+};
 use anyhow::{anyhow, Result};
+use futures::executor::block_on;
+use qrcode::render::unicode;
+use qrcode::{EcLevel, QrCode};
+use serde::{Deserialize, Serialize};
+use serde_json;
+use sodiumoxide::crypto::kx;
+use sodiumoxide::crypto::kx::PublicKey;
+use sodiumoxide::crypto::kx::SecretKey;
 use sodiumoxide::crypto::secretbox::Key;
+use sodiumoxide::randombytes::randombytes;
+use sodiumoxide::utils::memzero;
+use std::convert::TryInto;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
-use sodiumoxide::utils::memzero;
-use crate::constants::{get_phone_id_path, get_config_folder, get_secret_key_path, get_ssh_key_path};
 use whoami::{hostname, username};
-use std::convert::TryInto;
-
 
 pub fn render_qr_code(str: &str) {
-    let code = QrCode::with_error_correction_level(str, EcLevel::L)
-        .unwrap();
-    let image = code.render::<unicode::Dense1x2>()
-        .build();
+    let code = QrCode::with_error_correction_level(str, EcLevel::L).unwrap();
+    let image = code.render::<unicode::Dense1x2>().build();
     println!("{}", image);
 }
 
 mod public_key_serializer {
-    use serde::{Serialize, Deserialize};
+    use serde::de::Error;
+    use serde::{Deserialize, Serialize};
     use serde::{Deserializer, Serializer};
     use sodiumoxide::crypto::kx::x25519blake2b::PublicKey;
-    use serde::de::Error;
 
     pub fn serialize<S: Serializer>(v: &PublicKey, s: S) -> Result<S::Ok, S::Error> {
         let base64 = base64::encode(v);
@@ -40,19 +40,19 @@ mod public_key_serializer {
     pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<PublicKey, D::Error> {
         let base64 = String::deserialize(d)?;
         PublicKey::from_slice(
-            match base64::decode(base64.as_bytes())
-                .map_err(|e| serde::de::Error::custom(e)) {
+            match base64::decode(base64.as_bytes()).map_err(|e| serde::de::Error::custom(e)) {
                 Ok(a) => a,
-                Err(a) => return Err(a)
-            }.as_slice()
+                Err(a) => return Err(a),
+            }
+            .as_slice(),
         )
-            .ok_or(D::Error::custom("test"))
+        .ok_or(D::Error::custom("test"))
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct PairingRequest<'a> {
-    #[serde(with = "public_key_serializer", rename="pk")]
+    #[serde(with = "public_key_serializer", rename = "pk")]
     public_key: PublicKey,
 
     #[serde(rename = "pid")]
@@ -65,21 +65,19 @@ struct PairingRequest<'a> {
     version: String,
 }
 
-
-
 #[derive(Serialize, Deserialize, Debug)]
 struct PairingResponse {
-    #[serde(with = "public_key_serializer", rename="serverKey")]
+    #[serde(with = "public_key_serializer", rename = "serverKey")]
     server_key: PublicKey,
-    message: String
+    message: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct PairingData {
-    #[serde(rename="phoneId")]
+    #[serde(rename = "phoneId")]
     phone_id: String,
-    #[serde(rename="publicKeySSH")]
-    public_key_ssh: String
+    #[serde(rename = "publicKeySSH")]
+    public_key_ssh: String,
 }
 
 struct ClientPairingData {
@@ -88,11 +86,15 @@ struct ClientPairingData {
     rx: String, // TODO what exactly are these lol
 }
 
-
-fn decode_pairing_response(client_pk: PublicKey, client_sk: SecretKey, response: PairingResponse) -> Result<ClientPairingData> {
+fn decode_pairing_response(
+    client_pk: PublicKey,
+    client_sk: SecretKey,
+    response: PairingResponse,
+) -> Result<ClientPairingData> {
     //TODO sanity checks on server Key
 
-    let (rx, mut tx) = kx::client_session_keys(&client_pk, &client_sk, &response.server_key).map_err(|_| anyhow!("client session keys failed"))?;
+    let (rx, mut tx) = kx::client_session_keys(&client_pk, &client_sk, &response.server_key)
+        .map_err(|_| anyhow!("client session keys failed"))?;
 
     memzero(tx.0.as_mut());
 
@@ -104,7 +106,7 @@ fn decode_pairing_response(client_pk: PublicKey, client_sk: SecretKey, response:
         public_key_ssh: data.public_key_ssh,
         rx: base64rx,
     })
- }
+}
 
 pub fn pair() -> Result<()> {
     let (client_pk, client_sk) = kx::gen_keypair();
@@ -125,14 +127,13 @@ pub fn pair() -> Result<()> {
 
     let json = serde_json::to_string(&exchange)?;
 
-
     println!();
     println!();
     println!("Scan this QR code with the app");
     render_qr_code(json.to_string().as_str());
     println!("Waiting for Pairing...");
 
-    let response: PairingResponse = poll_for_message::<PairingResponse>(pairing_id)?;
+    let response: PairingResponse = block_on(poll_for_message::<PairingResponse>(pairing_id))?;
 
     println!("Found Pairing decoding data...");
 

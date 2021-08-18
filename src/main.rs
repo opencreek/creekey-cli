@@ -1,34 +1,37 @@
-mod pairing;
+mod agent;
 mod communication;
-mod test_sign;
-mod sign_on_phone;
 mod constants;
-mod setup_ssh;
-mod ssh_agent;
 mod me;
-mod unpair;
+mod pairing;
+mod setup_ssh;
+mod sign_on_phone;
+mod ssh_agent;
 mod ssh_proxy;
+mod test_sign;
+mod unpair;
 
-use anyhow::Result;
-use crate::pairing::pair;
-use crate::test_sign::test_sign;
-use crate::setup_ssh::setup_ssh;
 use crate::me::print_ssh_key;
+use crate::pairing::pair;
+use crate::setup_ssh::setup_ssh;
 use crate::ssh_agent::start_agent;
-use clap::{clap_app, ArgMatches};
-use std::net::{TcpStream, Shutdown};
-use std::io;
-use std::io::{BufReader, BufRead, Write, Read};
-use std::sync::Arc;
-use byteorder::{ReadBytesExt, WriteBytesExt, BigEndian};
-use std::fs::File;
-use os_pipe::{pipe, dup_stdin, dup_stdout};
-use std::convert::TryInto;
-use std::time::Duration;
-use std::thread;
 use crate::ssh_proxy::start_ssh_proxy;
+use crate::test_sign::test_sign;
+use anyhow::Result;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use clap::{clap_app, ArgMatches};
+use futures::executor::block_on;
+use os_pipe::{dup_stdin, dup_stdout, pipe};
+use std::convert::TryInto;
+use std::fs::File;
+use std::io;
+use std::io::{BufRead, BufReader, Read, Write};
+use std::net::{Shutdown, TcpStream};
+use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let matches = clap_app!(creekey =>
         (version: "0.1.0")
         (author: "Opencreek Technogoly UG - opencreek.tech")
@@ -54,24 +57,16 @@ fn main() -> Result<()> {
             (@arg host: "The host to connect to")
             (@arg port: "The port to connect to")
         )
-    ).get_matches();
+    )
+    .get_matches();
 
     return match matches.subcommand() {
-        ("pair", _) => {
-            pair()
-        }
-        ("test", _) => {
-            test_sign()
-        }
-        ("setupssh", _) => {
-            setup_ssh()
-        }
-        ("me", Some(matches)) => {
-            print_ssh_key(matches.is_present("copy"))
-        }
-        ("agent", _) => start_agent(),
+        ("pair", _) => pair(),
+        ("test", _) => test_sign(),
+        ("setupssh", _) => setup_ssh(),
+        ("me", Some(matches)) => print_ssh_key(matches.is_present("copy")),
+        ("agent", _) => start_agent().await,
         ("proxy", Some(matches)) => start_ssh_proxy(matches),
         _ => unreachable!(),
     };
 }
-

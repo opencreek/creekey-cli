@@ -1,11 +1,10 @@
-use anyhow::{Result, Context};
-use std::collections::HashMap;
-use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse};
 use crate::sign_on_phone::sign_on_phone;
+use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse};
+use anyhow::{Context, Result};
 use sodiumoxide::randombytes::randombytes;
+use std::collections::HashMap;
 
 pub fn test_sign() -> Result<()> {
-
     let key = read_sync_key()?;
     let phone_id = read_sync_phone_id()?;
     let relay_id = base64::encode_config(randombytes(32), base64::URL_SAFE);
@@ -27,5 +26,4 @@ pub fn test_sign() -> Result<()> {
     }
 
     Ok(())
-
 }

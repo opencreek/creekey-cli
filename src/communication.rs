@@ -1,18 +1,17 @@
+use anyhow::anyhow;
+use anyhow::Result;
+use base64::DecodeError;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+use serde_json::Error;
 use sodiumoxide::crypto::secretbox;
 use sodiumoxide::crypto::secretbox::Key;
 use sodiumoxide::crypto::secretbox::Nonce;
-use std::convert::TryInto;
-use thiserror::Error;
-use base64::DecodeError;
-use serde::{Serialize, Deserialize};
-use std::{str, thread, time};
-use serde::de::DeserializeOwned;
-use anyhow::Result;
-use serde_json::Error;
-use anyhow::anyhow;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::io::Read;
-
+use std::{str, thread, time};
+use thiserror::Error;
 
 pub fn encrypt<V: Serialize>(value: V, key: Key) -> Result<String> {
     let json = serde_json::to_string(&value)?;
@@ -29,15 +28,11 @@ pub enum DecryptionError {
     #[error("Invalid Cipher String")]
     InvalidString,
     #[error("Could not deserialize plain text to json")]
-    DeserializeError(
-        #[from] serde_json::Error
-    ),
+    DeserializeError(#[from] serde_json::Error),
     #[error("Could not decrypt")]
     CouldNotBeDecrypted,
     #[error("Could not deserialize plain text to json")]
-    Base64DecodeError(
-        #[from] DecodeError
-    ),
+    Base64DecodeError(#[from] DecodeError),
     #[error("Nonce of invalid length")]
     InvalidNonceLength,
     #[error("Could not parse plaintext to string")]
@@ -57,9 +52,14 @@ pub fn decrypt<V: DeserializeOwned>(text: String, key: Key) -> Result<V, Decrypt
     let ciphertext = base64::decode(ciphertext_str)?;
     let nonce_bytes = base64::decode(nonce_str)?;
 
-    let nonce = Nonce(nonce_bytes.try_into().map_err(|_| DecryptionError::InvalidNonceLength)?); // TODO error
+    let nonce = Nonce(
+        nonce_bytes
+            .try_into()
+            .map_err(|_| DecryptionError::InvalidNonceLength)?,
+    ); // TODO error
 
-    let plaintext = secretbox::open(&ciphertext, &nonce, &key).map_err(|_| DecryptionError::CouldNotBeDecrypted)?;
+    let plaintext = secretbox::open(&ciphertext, &nonce, &key)
+        .map_err(|_| DecryptionError::CouldNotBeDecrypted)?;
 
     let plaintext_str = String::from_utf8(plaintext).map_err(|_| DecryptionError::ParseError)?;
 
@@ -74,8 +74,8 @@ pub fn send_to_phone<V: Serialize>(key: Key, request: V, phone_id: String) -> Re
     map.insert("userId", phone_id);
     let client = reqwest::blocking::Client::new();
 
-    let mut resp = client.
-        post("https://ssh-proto.s.opencreek.tech/messaging/ring")
+    let mut resp = client
+        .post("https://ssh-proto.s.opencreek.tech/messaging/ring")
         .json(&map)
         .send()?;
 
@@ -94,25 +94,31 @@ pub struct MessageRelayResponse {
     pub message: String,
 }
 
-pub fn poll_for_message<V: DeserializeOwned>(relay_id: String) -> Result<V> {
-    return poll_for_message_with_timeout(relay_id, 2 * 60 * 1000)
+pub async fn poll_for_message<V: DeserializeOwned>(relay_id: String) -> Result<V> {
+    poll_for_message_with_timeout(relay_id, 2 * 60 * 1000).await
 }
 
-pub fn poll_for_message_with_timeout<V: DeserializeOwned>(relay_id: String, timeout: u128) -> Result<V> {
+pub async fn poll_for_message_with_timeout<V: DeserializeOwned>(
+    relay_id: String,
+    timeout: u128,
+) -> Result<V> {
     let start = time::Instant::now();
     let response: V = loop {
         if start.elapsed().as_millis() > timeout {
-            return Err(anyhow!("Did not receive a response"))
+            return Err(anyhow!("Did not receive a response"));
         }
         thread::sleep(time::Duration::from_millis(1000));
-        let resp = reqwest::blocking::get("https://ssh-proto.s.opencreek.tech/messaging/relay/".to_owned() + &relay_id);
+        let resp = reqwest::get(
+            "https://ssh-proto.s.opencreek.tech/messaging/relay/".to_owned() + &relay_id,
+        )
+        .await;
         let found = match resp {
             Ok(a) => {
                 if a.status().as_u16() != 404 {
-                    break a.json::<V>()?;
+                    break a.json::<V>().await?;
                 }
             }
-            Err(e) => println!("{}", e)
+            Err(e) => println!("{}", e),
         };
     };
     Ok(response)

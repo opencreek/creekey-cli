@@ -1,4 +1,4 @@
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 
@@ -18,7 +18,7 @@ pub fn setup_ssh() -> Result<()> {
     file.read_to_string(&mut str);
 
     if str.contains("creekey") {
-        return Ok(())
+        return Ok(());
     }
     file.write_all(b"# creekey config\nHost *\n\tIdentityAgent /tmp/ck-ssh-agent.sock")?;
 
