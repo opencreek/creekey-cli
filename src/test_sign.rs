@@ -29,7 +29,7 @@ pub async fn test_sign() -> Result<()> {
                 SignError::PollError(poll_error) => {
                     match poll_error {
                         PollError::Timeout => {
-                            log.println("❌ Timed out!", Color::Red);
+                            log.println("❌ Timed out!", Color::Red)?;
                         }
                         _ => {}
                     };
