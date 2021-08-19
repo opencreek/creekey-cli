@@ -38,7 +38,7 @@ fn parse_user_name(data: Vec<u8>) -> Result<String> {
     Ok(String::from_utf8(name)?)
 }
 
-fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProxy> {
+pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProxy> {
     let ret = proxies.iter().find(|it| {
         if let Ok(sig_bytes) = it.signature.as_slice().try_into() {
             if let Some(pk) = &PublicKey::from_slice(it.key.as_slice()) {

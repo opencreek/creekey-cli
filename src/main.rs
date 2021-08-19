@@ -12,6 +12,7 @@ mod test_sign;
 mod unpair;
 
 use crate::me::print_ssh_key;
+use crate::output::Log;
 use crate::pairing::pair;
 use crate::setup_ssh::setup_ssh;
 use crate::ssh_agent::start_agent;
@@ -21,6 +22,8 @@ use crate::unpair::unpair;
 use anyhow::Result;
 
 use clap::{clap_app, AppSettings};
+use colored::Color;
+use std::panic;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -60,7 +63,14 @@ async fn main() -> Result<()> {
     app = app.clone().setting(AppSettings::ColoredHelp);
     let matches = app.clone().get_matches();
 
-    return match matches.subcommand() {
+    panic::set_hook(Box::new(|e| {
+        Log::NONE.println(
+            format!("🚨🚨🚨 Panicked with error: {}", e).as_str(),
+            Color::Red,
+        );
+    }));
+
+    let ret = match matches.subcommand() {
         ("pair", _) => pair().await,
         ("unpair", _) => unpair().await,
         // ("testgpg", _) => sign_git_commit().await,
@@ -74,4 +84,15 @@ async fn main() -> Result<()> {
             Ok(())
         }
     };
+
+    match ret {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            Log::NONE.println(
+                format!("🚨🚨🚨 Panicked with error: {}", e).as_str(),
+                Color::Red,
+            );
+            Ok(())
+        }
+    }
 }

@@ -89,7 +89,7 @@ pub async fn read_and_handle_packet(
 
         match packet {
             SSHAgentPacket::RequestIdentities => {
-                give_identities(socket).await?;
+                give_identities(socket, proxies.clone()).await?;
             }
             SSHAgentPacket::SignRequest(key_blob, data, flags) => {
                 let _proxy = sign_request(

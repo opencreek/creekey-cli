@@ -15,56 +15,73 @@ use std;
 
 use std::fs;
 use std::sync::{Arc, Mutex};
+use thiserror::Error;
 use tokio::net::UnixListener;
 use tokio::select;
 use tokio::task;
 
 use crate::agent::handle::read_and_handle_packet;
 use crate::output::check_color_tty;
+use crate::ssh_agent::ReadError::KeyParseError;
 
 fn cleanup_socket() {
     let _ = std::fs::remove_file("/tmp/ck-ssh-agent.sock").unwrap_or(());
 }
 
-pub fn read_sync_key() -> Result<secretbox::Key> {
-    let path = get_secret_key_path()?;
+#[derive(Error, Debug)]
+pub enum ReadError {
+    #[error("File is missing")]
+    FileIsMissing,
 
-    let key_str =
-        fs::read_to_string(path).map_err(|_| anyhow!("Could not read key! Did you `pair` yet?"))?;
+    #[error("could not get path")]
+    CouldNotGetPath,
 
-    let decoded = base64::decode(key_str)?;
-    Ok(secretbox::Key::from_slice(&decoded).unwrap())
+    #[error("Error Parsing Key")]
+    KeyParseError,
 }
 
-pub fn read_sync_phone_id() -> Result<String> {
-    let path = get_phone_id_path()?;
+pub fn read_sync_key() -> Result<secretbox::Key, ReadError> {
+    let path = get_secret_key_path().map_err(|_| ReadError::CouldNotGetPath)?;
 
-    let key_str = fs::read_to_string(path)?;
+    let key_str = fs::read_to_string(path).map_err(|_| ReadError::FileIsMissing)?;
+
+    let decoded = base64::decode(key_str).map_err(|_| ReadError::KeyParseError)?;
+    Ok(secretbox::Key::from_slice(&decoded)
+        .context("")
+        .map_err(|_| ReadError::KeyParseError)?)
+}
+
+pub fn read_sync_phone_id() -> Result<String, ReadError> {
+    let path = get_phone_id_path().map_err(|_| ReadError::CouldNotGetPath)?;
+
+    let key_str = fs::read_to_string(path).map_err(|_| ReadError::FileIsMissing)?;
     let trimmed = key_str.trim().to_string();
 
     Ok(trimmed)
 }
 
-pub fn read_ssh_key() -> Result<String> {
-    let path = get_ssh_key_path()?;
+pub fn read_ssh_key() -> Result<String, ReadError> {
+    let path = get_ssh_key_path().map_err(|_| ReadError::CouldNotGetPath)?;
 
     if !path.exists() {
-        anyhow!("Public Key could not be read. Did you `pair` yet?");
+        return Err(ReadError::FileIsMissing);
     }
 
-    Ok(fs::read_to_string(path)?)
+    Ok(fs::read_to_string(path).map_err(|_| ReadError::KeyParseError)?)
 }
 
-pub fn read_key_blob() -> Result<Vec<u8>> {
+pub fn read_key_blob() -> Result<Vec<u8>, ReadError> {
     let contents = read_ssh_key()?;
     let mut iter = contents.split_whitespace();
-    iter.next().context("Wrong key format")?;
+    iter.next()
+        .context("")
+        .map_err(|_| ReadError::KeyParseError)?;
     let key_str = match iter.next() {
         Some(s) => s,
         None => panic!("couldn't read id.pub: wrong format?"),
     };
 
-    Ok(base64::decode(key_str)?)
+    Ok(base64::decode(key_str).map_err(|_| ReadError::KeyParseError)?)
 }
 
 #[derive(Clone, Debug)]

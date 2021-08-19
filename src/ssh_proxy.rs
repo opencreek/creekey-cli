@@ -49,12 +49,10 @@ fn start_logger_proxy() -> Result<String> {
 }
 
 fn is_agent_running() -> Result<bool> {
-    for prc in procfs::process::all_processes()? {
-        if prc.stat.comm == "creekey-agent" {
-            return Ok(true);
-        }
+    match UnixStream::connect("/tmp/ck-ssh-agent.sock") {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),
     }
-    Ok(false)
 }
 
 fn send_info_packet(host: &str, socket_path: &str, signature: &[u8], key: &[u8]) -> Result<()> {
