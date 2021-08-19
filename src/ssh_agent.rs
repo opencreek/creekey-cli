@@ -1,7 +1,7 @@
 use crate::constants::{get_phone_id_path, get_secret_key_path, get_ssh_key_path};
 
 use anyhow::Result;
-use anyhow::{anyhow, Context};
+use anyhow::{Context};
 
 use daemonize::Daemonize;
 use futures::channel::mpsc::unbounded;
@@ -22,7 +22,7 @@ use tokio::task;
 
 use crate::agent::handle::read_and_handle_packet;
 use crate::output::check_color_tty;
-use crate::ssh_agent::ReadError::KeyParseError;
+
 
 fn cleanup_socket() {
     let _ = std::fs::remove_file("/tmp/ck-ssh-agent.sock").unwrap_or(());

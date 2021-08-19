@@ -1,7 +1,7 @@
 use crate::communication::{
     decrypt, poll_for_message, send_to_phone, MessageRelayResponse, PollError,
 };
-use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse, SshProxy, ReadError};
+use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse, SshProxy};
 
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
@@ -16,11 +16,11 @@ use std::convert::TryInto;
 use std::io::{Cursor, Read};
 
 use crate::output::Log;
+
+
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::time::{sleep, Duration};
-use sodiumoxide::crypto::secretbox::Key;
-use anyhow::anyhow;
 
 fn parse_user_name(data: Vec<u8>) -> Result<String> {
     let mut cursor = Cursor::new(data);
@@ -68,7 +68,6 @@ pub async fn respond_with_failure(socket: &mut UnixStream) -> Result<()> {
 
     Ok(())
 }
-
 
 pub async fn sign_request(
     socket: &mut UnixStream,
@@ -119,7 +118,6 @@ pub async fn sign_request(
     }
     payload.insert("relayId", relay_id.clone());
 
-
     let key = match read_sync_key() {
         Ok(k) => k,
         Err(e) => {
@@ -150,9 +148,12 @@ pub async fn sign_request(
     )?;
 
     match send_to_phone(key.clone(), payload, phone_id).await {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(e) => {
-            log.println(format!("🚨 Got Error while sending request: {}",e).as_str(), Color::Red)?;
+            log.println(
+                format!("🚨 Got Error while sending request: {}", e).as_str(),
+                Color::Red,
+            )?;
             sleep(Duration::from_millis(10)).await;
             respond_with_failure(socket).await?;
             return Ok(());

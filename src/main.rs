@@ -77,7 +77,9 @@ async fn main() -> Result<()> {
         // ("testgpg", _) => sign_git_commit().await,
         ("test", _) => test_sign().await,
         ("setupssh", _) => setup_ssh(),
-        ("me", Some(matches)) => print_ssh_key(matches.is_present("copy"), matches.is_present("raw")),
+        ("me", Some(matches)) => {
+            print_ssh_key(matches.is_present("copy"), matches.is_present("raw"))
+        }
         ("agent", _) => start_agent().await,
         ("proxy", Some(matches)) => start_ssh_proxy(matches),
         _ => {

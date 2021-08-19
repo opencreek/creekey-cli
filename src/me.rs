@@ -1,7 +1,7 @@
+use crate::output::Log;
 use crate::ssh_agent::read_ssh_key;
 use anyhow::{anyhow, Result};
 use clipboard::{ClipboardContext, ClipboardProvider};
-use crate::output::Log;
 use colored::Color;
 
 pub fn print_ssh_key(copy_to_clipboard: bool, raw: bool) -> Result<()> {
@@ -18,7 +18,10 @@ pub fn print_ssh_key(copy_to_clipboard: bool, raw: bool) -> Result<()> {
             })?;
             log.println("🚨 Copied to clipboard", Color::Green);
         } else {
-            log.println(" You can use '--copy' to automatically copy the key to your clipboard", Color::White)?;
+            log.println(
+                " You can use '--copy' to automatically copy the key to your clipboard",
+                Color::White,
+            )?;
         }
         println!();
     }
@@ -27,9 +30,11 @@ pub fn print_ssh_key(copy_to_clipboard: bool, raw: bool) -> Result<()> {
 
     if !raw {
         println!();
-        println!();
 
-        log.println("➡️ Copy the public key above to wherever you are using", Color::Blue);
+        log.println(
+            "➡️ Copy the public key above to wherever you are using",
+            Color::Blue,
+        );
     }
 
     Ok(())

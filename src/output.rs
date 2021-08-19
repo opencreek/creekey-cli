@@ -1,10 +1,10 @@
+use crate::ssh_agent::ReadError;
 use anyhow::Result;
 use colored::{Color, Colorize};
 use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::os::unix::net::UnixStream;
-use crate::ssh_agent::ReadError;
 
 pub struct Log<'a> {
     file: Option<&'a File>,
@@ -53,10 +53,7 @@ impl<'a> Log<'a> {
             format!("🚨 {}. Did you pair yet?", reason).as_str(),
             Color::Red,
         )?;
-        self.println(
-            "🚨 Aborting...",
-            Color::Red
-        )?;
+        self.println("🚨 Aborting...", Color::Red)?;
         return Ok(());
     }
 
@@ -66,7 +63,10 @@ impl<'a> Log<'a> {
                 self.print_not_paired_error(format!("Could not find {}", context))?;
             }
             e => {
-                self.println(format!("🚨 Could not Read {}: {}", context, e).as_str(), Color::Red)?;
+                self.println(
+                    format!("🚨 Could not Read {}: {}", context, e).as_str(),
+                    Color::Red,
+                )?;
             }
         }
 

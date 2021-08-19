@@ -2,8 +2,8 @@ use crate::communication::send_to_phone;
 
 use crate::constants::{get_phone_id_path, get_secret_key_path};
 use crate::output::Log;
-use crate::ssh_agent::{read_sync_key, read_sync_phone_id, ReadError};
-use anyhow::anyhow;
+use crate::ssh_agent::{read_sync_key, read_sync_phone_id};
+
 use anyhow::Result;
 use colored::Color;
 use sodiumoxide::randombytes::randombytes;
