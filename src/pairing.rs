@@ -4,7 +4,7 @@ use crate::constants::{
 };
 use crate::output::Log;
 use anyhow::{anyhow, Result};
-use colored::{Color};
+use colored::Color;
 
 use qrcode::{EcLevel, QrCode};
 use serde::{Deserialize, Serialize};
@@ -25,8 +25,11 @@ pub fn render_qr_code(str: &str) {
     let code = QrCode::with_error_correction_level(str, EcLevel::L).unwrap();
     let dark = String::from("\x1B[40m  \x1B[0m");
     let white = String::from("\x1B[47m  \x1B[0m");
-    let image = code.render()
-         .light_color(white.as_str()).dark_color(dark.as_str()).build();
+    let image = code
+        .render()
+        .light_color(white.as_str())
+        .dark_color(dark.as_str())
+        .build();
     println!("{}", image);
 }
 
@@ -166,9 +169,7 @@ pub async fn pair() -> Result<()> {
     write_phone_id_to_disk(client_data.phone_id)?;
     log.println("✔️", "Done!", Color::Green)?;
 
-    log.user_todo(
-        "Run 'creekey setup-ssh' to auto set up your ssh configuration",
-    )?;
+    log.user_todo("Run 'creekey setup-ssh' to auto set up your ssh configuration")?;
 
     return Ok(());
 }

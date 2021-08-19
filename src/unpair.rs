@@ -15,9 +15,7 @@ pub async fn unpair() -> Result<()> {
     let key = match read_sync_key() {
         Ok(k) => k,
         Err(e) => {
-            log.error(
-                "Could not read the secret key. Probably already unpaired!"
-            )?;
+            log.error("Could not read the secret key. Probably already unpaired!")?;
             log.error(format!("Error received: {}", e).as_str())?;
             return Ok(());
         }
@@ -25,9 +23,7 @@ pub async fn unpair() -> Result<()> {
     let phone_id = match read_sync_phone_id() {
         Ok(k) => k,
         Err(e) => {
-            log.error(
-                "Could not read the phone id. Probably already unpaired!"
-            )?;
+            log.error("Could not read the phone id. Probably already unpaired!")?;
             log.error(format!("Error received: {}", e).as_str())?;
             return Ok(());
         }

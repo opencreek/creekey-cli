@@ -17,7 +17,6 @@ use std::io::{Cursor, Read};
 
 use crate::output::Log;
 
-
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::time::{sleep, Duration};
@@ -138,16 +137,12 @@ pub async fn sign_request(
         }
     };
 
-    log.waiting_on(
-        "Waiting for phone authorization ...",
-    )?;
+    log.waiting_on("Waiting for phone authorization ...")?;
 
     match send_to_phone(key.clone(), payload, phone_id).await {
         Ok(_) => {}
         Err(e) => {
-            log.error(
-                format!("Got Error while sending request: {}", e).as_str(),
-            )?;
+            log.error(format!("Got Error while sending request: {}", e).as_str())?;
             sleep(Duration::from_millis(10)).await;
             respond_with_failure(socket).await?;
             return Ok(());

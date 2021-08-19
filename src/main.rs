@@ -65,9 +65,7 @@ async fn main() -> Result<()> {
     let matches = app.clone().get_matches();
 
     panic::set_hook(Box::new(|e| {
-        Log::NONE.panic(
-            format!("Panicked with error: {}", e).as_str()
-        );
+        Log::NONE.panic(format!("Panicked with error: {}", e).as_str());
     }));
 
     let ret = match matches.subcommand() {
@@ -90,9 +88,7 @@ async fn main() -> Result<()> {
     match ret {
         Ok(_) => Ok(()),
         Err(e) => {
-            Log::NONE.panic(
-                format!("Panicked with error: {}", e).as_str()
-            );
+            Log::NONE.panic(format!("Panicked with error: {}", e).as_str());
             Ok(())
         }
     }

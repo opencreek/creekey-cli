@@ -1,11 +1,11 @@
 use crate::ssh_agent::ReadError;
 use anyhow::Result;
 use colored::{Color, Colorize};
+use futures::AsyncWriteExt;
 use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::os::unix::net::UnixStream;
-use futures::AsyncWriteExt;
 
 pub struct Log<'a> {
     file: Option<&'a File>,
@@ -14,38 +14,36 @@ pub struct Log<'a> {
 
 pub fn string_log(emoji: &str, line: &str, color: Color) -> String {
     let name = match env::var("COLORTERM") {
-        Ok(_e) => "creekey".truecolor(255,148,0).to_string(),
-        Err(_) => "\x1b[38;5;202mcreekey\x1b[0;m".to_string()
+        Ok(_e) => "creekey".truecolor(255, 148, 0).to_string(),
+        Err(_) => "\x1b[38;5;202mcreekey\x1b[0;m".to_string(),
     };
-
 
     format!("{} {}\t{}", name, emoji, line.color(color))
 }
 
 impl<'a> Log<'a> {
-
     pub fn fail(&self, line: &str) -> Result<()> {
-        self.println( "❌", line, Color::Red)
+        self.println("❌", line, Color::Red)
     }
 
     pub fn panic(&self, line: &str) -> Result<()> {
-        self.println( "❌❌❌", line, Color::Red)
+        self.println("❌❌❌", line, Color::Red)
     }
 
     pub fn error(&self, line: &str) -> Result<()> {
-       self.println( "🚨", line, Color::Red)
+        self.println("🚨", line, Color::Red)
     }
 
     pub fn waiting_on(&self, line: &str) -> Result<()> {
-        self.println( "⏳", line, Color::White)
+        self.println("⏳", line, Color::White)
     }
 
     pub fn success(&self, line: &str) -> Result<()> {
-        self.println( "🏁", line, Color::Green)
+        self.println("🏁", line, Color::Green)
     }
 
     pub fn user_todo(&self, line: &str) -> Result<()> {
-        self.println( "➡️", line, Color::BrightCyan)
+        self.println("➡️", line, Color::BrightCyan)
     }
 
     pub fn println(&self, emoji: &str, line: &str, color: Color) -> Result<()> {
@@ -86,7 +84,7 @@ impl<'a> Log<'a> {
             format!("{}. Did you pair yet?", reason).as_str(),
             Color::Red,
         )?;
-        self.println("🚨","Aborting...", Color::Red)?;
+        self.println("🚨", "Aborting...", Color::Red)?;
         return Ok(());
     }
 

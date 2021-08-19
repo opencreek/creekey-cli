@@ -3,7 +3,6 @@ use crate::ssh_agent::read_ssh_key;
 use anyhow::{anyhow, Result};
 use clipboard::{ClipboardContext, ClipboardProvider};
 
-
 pub fn print_ssh_key(copy_to_clipboard: bool, raw: bool) -> Result<()> {
     let log = Log::NONE;
     let key = read_ssh_key()?;
@@ -18,9 +17,7 @@ pub fn print_ssh_key(copy_to_clipboard: bool, raw: bool) -> Result<()> {
             })?;
             log.error("Copied to clipboard");
         } else {
-            log.user_todo(
-                "You can use '--copy' to automatically copy the key to your clipboard"
-            )?;
+            log.user_todo("You can use '--copy' to automatically copy the key to your clipboard")?;
         }
         println!();
     }
@@ -30,9 +27,7 @@ pub fn print_ssh_key(copy_to_clipboard: bool, raw: bool) -> Result<()> {
     if !raw {
         println!();
 
-        log.user_todo(
-            "Copy the public key above to wherever you are using"
-        );
+        log.user_todo("Copy the public key above to wherever you are using");
     }
 
     Ok(())
