@@ -4,6 +4,7 @@ use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::os::unix::net::UnixStream;
+use crate::ssh_agent::ReadError;
 
 pub struct Log<'a> {
     file: Option<&'a File>,
@@ -46,6 +47,31 @@ impl<'a> Log<'a> {
         file: None,
         stream: None,
     };
+
+    pub fn print_not_paired_error(&mut self, reason: String) -> Result<()> {
+        self.println(
+            format!("🚨 {}. Did you pair yet?", reason).as_str(),
+            Color::Red,
+        )?;
+        self.println(
+            "🚨 Aborting...",
+            Color::Red
+        )?;
+        return Ok(());
+    }
+
+    pub fn handle_read_error(&mut self, context: &str, error: ReadError) -> Result<()> {
+        match error {
+            ReadError::FileIsMissing => {
+                self.print_not_paired_error(format!("Could not find {}", context))?;
+            }
+            e => {
+                self.println(format!("🚨 Could not Read {}: {}", context, e).as_str(), Color::Red)?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 pub fn check_color_tty() {

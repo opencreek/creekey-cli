@@ -1,7 +1,7 @@
 use crate::communication::{
     decrypt, poll_for_message, send_to_phone, MessageRelayResponse, PollError,
 };
-use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse, SshProxy};
+use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse, SshProxy, ReadError};
 
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
@@ -19,6 +19,8 @@ use crate::output::Log;
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::time::{sleep, Duration};
+use sodiumoxide::crypto::secretbox::Key;
+use anyhow::anyhow;
 
 fn parse_user_name(data: Vec<u8>) -> Result<String> {
     let mut cursor = Cursor::new(data);
@@ -67,6 +69,7 @@ pub async fn respond_with_failure(socket: &mut UnixStream) -> Result<()> {
     Ok(())
 }
 
+
 pub async fn sign_request(
     socket: &mut UnixStream,
     _key_blob: Vec<u8>,
@@ -89,7 +92,7 @@ pub async fn sign_request(
 
     let stream: std::os::unix::net::UnixStream;
 
-    let log = match proxy.clone() {
+    let mut log = match proxy.clone() {
         Some(it) => {
             stream = std::os::unix::net::UnixStream::connect(it.logger_socket)?;
             Log::from_stream(&stream)
@@ -116,8 +119,26 @@ pub async fn sign_request(
     }
     payload.insert("relayId", relay_id.clone());
 
-    let key = read_sync_key()?;
-    let phone_id = read_sync_phone_id()?;
+
+    let key = match read_sync_key() {
+        Ok(k) => k,
+        Err(e) => {
+            log.handle_read_error("secret key", e);
+            sleep(Duration::from_millis(10)).await;
+            respond_with_failure(socket).await?;
+            return Ok(());
+        }
+    };
+
+    let phone_id = match read_sync_phone_id() {
+        Ok(k) => k,
+        Err(e) => {
+            log.handle_read_error("phone id", e);
+            sleep(Duration::from_millis(10)).await;
+            respond_with_failure(socket).await?;
+            return Ok(());
+        }
+    };
 
     log.println(
         "⏳ Waiting for phone authorization ...",
@@ -127,7 +148,16 @@ pub async fn sign_request(
             g: 154,
         },
     )?;
-    send_to_phone(key.clone(), payload, phone_id).await?;
+
+    match send_to_phone(key.clone(), payload, phone_id).await {
+        Ok(_) => {},
+        Err(e) => {
+            log.println(format!("🚨 Got Error while sending request: {}",e).as_str(), Color::Red)?;
+            sleep(Duration::from_millis(10)).await;
+            respond_with_failure(socket).await?;
+            return Ok(());
+        }
+    }
 
     let typ = 14u8;
 

@@ -48,6 +48,6 @@ pub async fn unpair() -> Result<()> {
     fs::remove_file(get_phone_id_path()?)?;
     fs::remove_file(get_secret_key_path()?)?;
 
-    log.println(" Succesfully Unpaired", Color::Green)?;
+    log.println("🏁 Succesfully Unpaired", Color::Green)?;
     Ok(())
 }

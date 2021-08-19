@@ -6,6 +6,7 @@ use crate::output::Log;
 use colored::Color;
 use std::io::Write;
 use tokio::net::UnixStream;
+use crate::agent::sign::respond_with_failure;
 
 pub async fn give_identities(socket: &mut UnixStream, proxies: Vec<SshProxy>) -> Result<()> {
     println!("giving identities");
@@ -19,10 +20,11 @@ pub async fn give_identities(socket: &mut UnixStream, proxies: Vec<SshProxy>) ->
         Err(e) => {
             for proxy in proxies {
                 if let Ok(stream) = std::os::unix::net::UnixStream::connect(&proxy.logger_socket) {
-                    let log = Log::from_stream(&stream);
-                    log.println("🚨 Could not find ssh key. did you pair yet?", Color::Red)?;
+                    let mut log = Log::from_stream(&stream);
+                    log.print_not_paired_error("Could not find ssh key".to_string());
                 }
             }
+            respond_with_failure(socket).await?;
             return Ok(());
         }
     };

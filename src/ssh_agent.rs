@@ -28,7 +28,7 @@ fn cleanup_socket() {
     let _ = std::fs::remove_file("/tmp/ck-ssh-agent.sock").unwrap_or(());
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum ReadError {
     #[error("File is missing")]
     FileIsMissing,

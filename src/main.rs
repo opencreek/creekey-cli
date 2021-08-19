@@ -46,6 +46,7 @@ async fn main() -> Result<()> {
         (@subcommand me =>
             (about: "Prints the Public SSH key")
             (@arg copy: -c --copy "Copys the SSH key to the clipboard")
+            (@arg raw: -r --raw "Only outputs the key")
         )
         (@subcommand setupssh =>
             (about: "Setups ssh automaticaly")
@@ -76,7 +77,7 @@ async fn main() -> Result<()> {
         // ("testgpg", _) => sign_git_commit().await,
         ("test", _) => test_sign().await,
         ("setupssh", _) => setup_ssh(),
-        ("me", Some(matches)) => print_ssh_key(matches.is_present("copy")),
+        ("me", Some(matches)) => print_ssh_key(matches.is_present("copy"), matches.is_present("raw")),
         ("agent", _) => start_agent().await,
         ("proxy", Some(matches)) => start_ssh_proxy(matches),
         _ => {
