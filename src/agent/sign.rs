@@ -5,7 +5,7 @@ use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse, Ssh
 
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
-use colored::Color;
+
 use futures::channel::mpsc::UnboundedSender;
 use futures::SinkExt;
 

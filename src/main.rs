@@ -22,7 +22,7 @@ use crate::unpair::unpair;
 use anyhow::Result;
 
 use clap::{clap_app, AppSettings};
-use colored::Color;
+
 use std::panic;
 
 #[tokio::main]

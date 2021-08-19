@@ -2,7 +2,7 @@ use crate::output::Log;
 use crate::ssh_agent::read_ssh_key;
 use anyhow::{anyhow, Result};
 use clipboard::{ClipboardContext, ClipboardProvider};
-use colored::Color;
+
 
 pub fn print_ssh_key(copy_to_clipboard: bool, raw: bool) -> Result<()> {
     let log = Log::NONE;

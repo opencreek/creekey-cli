@@ -3,7 +3,7 @@ use crate::output::Log;
 use crate::sign_on_phone::{sign_on_phone, SignError};
 use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse};
 use anyhow::Result;
-use colored::Color;
+
 use sodiumoxide::randombytes::randombytes;
 use std::collections::HashMap;
 

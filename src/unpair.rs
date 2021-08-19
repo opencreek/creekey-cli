@@ -5,7 +5,7 @@ use crate::output::Log;
 use crate::ssh_agent::{read_sync_key, read_sync_phone_id};
 
 use anyhow::Result;
-use colored::Color;
+
 use sodiumoxide::randombytes::randombytes;
 use std::collections::HashMap;
 use std::fs;

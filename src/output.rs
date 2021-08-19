@@ -14,7 +14,7 @@ pub struct Log<'a> {
 
 pub fn string_log(emoji: &str, line: &str, color: Color) -> String {
     let name = match env::var("COLORTERM") {
-        Ok(e) => "creekey".truecolor(255,148,0).to_string(),
+        Ok(_e) => "creekey".truecolor(255,148,0).to_string(),
         Err(_) => "\x1b[38;5;202mcreekey\x1b[0;m".to_string()
     };
 

@@ -16,7 +16,7 @@ use crate::output::{check_color_tty, Log};
 use crate::sign_on_phone::{sign_on_phone, SignError};
 use crate::ssh_agent::{read_sync_key, read_sync_phone_id};
 use anyhow::Result;
-use colored::Color;
+
 use serde::{Deserialize, Serialize};
 use sodiumoxide::randombytes::randombytes;
 use std::env;

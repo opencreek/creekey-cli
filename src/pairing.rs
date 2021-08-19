@@ -4,8 +4,8 @@ use crate::constants::{
 };
 use crate::output::Log;
 use anyhow::{anyhow, Result};
-use colored::{Color, Colorize};
-use qrcode::render::unicode;
+use colored::{Color};
+
 use qrcode::{EcLevel, QrCode};
 use serde::{Deserialize, Serialize};
 use serde_json;
