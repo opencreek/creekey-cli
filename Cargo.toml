@@ -2,7 +2,8 @@
 name = "creekey"
 version = "0.1.0"
 edition = "2018"
-author = "Opencreek Technogoly UG"
+authors = ["Opencreek Technogoly UG"]
+repository = "https://github.com/opencreek/creekey"
 description = "Story your Private Keys on your Phone!"
 license = "UNLICENSED"
 homepage = "https://creekey.io"
