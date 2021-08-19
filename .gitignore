@@ -1,3 +1,5 @@
 id_test
 /target
 /src/target
+.idea/
+*.tar.zst
