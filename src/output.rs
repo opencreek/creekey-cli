@@ -5,19 +5,51 @@ use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::os::unix::net::UnixStream;
+use futures::AsyncWriteExt;
 
 pub struct Log<'a> {
     file: Option<&'a File>,
     stream: Option<&'a UnixStream>,
 }
 
-pub fn string_log(line: &str, color: Color) -> String {
-    format!("{} {}", "creekey".truecolor(255, 148, 0), line.color(color))
+pub fn string_log(emoji: &str, line: &str, color: Color) -> String {
+    let name = match env::var("COLORTERM") {
+        Ok(e) => "creekey".truecolor(255,148,0).to_string(),
+        Err(_) => "\x1b[38;5;202mcreekey\x1b[0;m".to_string()
+    };
+
+
+    format!("{} {}\t{}", name, emoji, line.color(color))
 }
 
 impl<'a> Log<'a> {
-    pub fn println(&self, line: &str, color: Color) -> Result<()> {
-        let string = string_log(line, color);
+
+    pub fn fail(&self, line: &str) -> Result<()> {
+        self.println( "❌", line, Color::Red)
+    }
+
+    pub fn panic(&self, line: &str) -> Result<()> {
+        self.println( "❌❌❌", line, Color::Red)
+    }
+
+    pub fn error(&self, line: &str) -> Result<()> {
+       self.println( "🚨", line, Color::Red)
+    }
+
+    pub fn waiting_on(&self, line: &str) -> Result<()> {
+        self.println( "⏳", line, Color::White)
+    }
+
+    pub fn success(&self, line: &str) -> Result<()> {
+        self.println( "🏁", line, Color::Green)
+    }
+
+    pub fn user_todo(&self, line: &str) -> Result<()> {
+        self.println( "➡️", line, Color::BrightCyan)
+    }
+
+    pub fn println(&self, emoji: &str, line: &str, color: Color) -> Result<()> {
+        let string = string_log(emoji, line, color);
         if let Some(mut out) = self.file {
             out.write_all(string.as_bytes())?;
             out.write_all("\n".as_bytes())?;
@@ -50,10 +82,11 @@ impl<'a> Log<'a> {
 
     pub fn print_not_paired_error(&mut self, reason: String) -> Result<()> {
         self.println(
-            format!("🚨 {}. Did you pair yet?", reason).as_str(),
+            "🚨",
+            format!("{}. Did you pair yet?", reason).as_str(),
             Color::Red,
         )?;
-        self.println("🚨 Aborting...", Color::Red)?;
+        self.println("🚨","Aborting...", Color::Red)?;
         return Ok(());
     }
 
@@ -64,7 +97,8 @@ impl<'a> Log<'a> {
             }
             e => {
                 self.println(
-                    format!("🚨 Could not Read {}: {}", context, e).as_str(),
+                    "🚨",
+                    format!("Could not Read {}: {}", context, e).as_str(),
                     Color::Red,
                 )?;
             }

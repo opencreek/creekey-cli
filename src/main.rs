@@ -65,9 +65,8 @@ async fn main() -> Result<()> {
     let matches = app.clone().get_matches();
 
     panic::set_hook(Box::new(|e| {
-        Log::NONE.println(
-            format!("🚨🚨🚨 Panicked with error: {}", e).as_str(),
-            Color::Red,
+        Log::NONE.panic(
+            format!("Panicked with error: {}", e).as_str()
         );
     }));
 
@@ -91,9 +90,8 @@ async fn main() -> Result<()> {
     match ret {
         Ok(_) => Ok(()),
         Err(e) => {
-            Log::NONE.println(
-                format!("🚨🚨🚨 Panicked with error: {}", e).as_str(),
-                Color::Red,
+            Log::NONE.panic(
+                format!("Panicked with error: {}", e).as_str()
             );
             Ok(())
         }

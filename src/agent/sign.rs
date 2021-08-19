@@ -138,21 +138,15 @@ pub async fn sign_request(
         }
     };
 
-    log.println(
-        "⏳ Waiting for phone authorization ...",
-        Color::TrueColor {
-            r: 239,
-            b: 1,
-            g: 154,
-        },
+    log.waiting_on(
+        "Waiting for phone authorization ...",
     )?;
 
     match send_to_phone(key.clone(), payload, phone_id).await {
         Ok(_) => {}
         Err(e) => {
-            log.println(
-                format!("🚨 Got Error while sending request: {}", e).as_str(),
-                Color::Red,
+            log.error(
+                format!("Got Error while sending request: {}", e).as_str(),
             )?;
             sleep(Duration::from_millis(10)).await;
             respond_with_failure(socket).await?;
@@ -171,7 +165,7 @@ pub async fn sign_request(
             match e {
                 PollError::Timeout => {
                     // there is an X emoji at the start of the string
-                    log.println("❌ Timed out", Color::Red)?;
+                    log.fail("Timed out")?;
                 }
                 _ => {}
             }
@@ -186,12 +180,12 @@ pub async fn sign_request(
     let data: PhoneSignResponse = decrypt(phone_response.message, key)?;
 
     if !data.accepted {
-        log.println("❌ Request was denied", Color::Red)?;
+        log.fail("Request was denied")?;
         respond_with_failure(socket).await?;
         return Ok(());
     }
 
-    log.println("🏁 Accepted request", Color::Green)?;
+    log.success("Accepted request")?;
 
     let signature_bytes = base64::decode(data.signature.unwrap())?;
     println!("responding to socket with authorization");

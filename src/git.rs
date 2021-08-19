@@ -59,7 +59,7 @@ pub async fn sign_git_commit() -> Result<()> {
         relay_id: relay_id.clone(),
     };
 
-    log.println("⏳ Waiting on Phone Authorization...", Color::Yellow)?;
+    log.waiting_on("Waiting on Phone Authorization...")?;
     let response: GgpResponse = match sign_on_phone(request, phone_id, relay_id, key).await {
         Ok(t) => t,
         Err(e) => {
@@ -67,7 +67,7 @@ pub async fn sign_git_commit() -> Result<()> {
                 SignError::PollError(poll_err) => {
                     if let PollError::Timeout = poll_err {
                         // There is an emoji at the beginning of that string!
-                        log.println("❌ Timed Out\n", Color::Red)?;
+                        log.fail("Timed Out")?;
                     }
                 }
                 _ => {}
@@ -78,10 +78,10 @@ pub async fn sign_git_commit() -> Result<()> {
 
     if !response.accepted {
         eprintln!("Not accepted!");
-        log.println("⏳ Not Accepted", Color::Green)?;
+        log.fail("Not Accepted")?;
         return Ok(());
     }
-    log.println("⏳ Accepted", Color::Green)?;
+    log.success("Accepted")?;
 
     if let Some(data_base64) = response.message {
         let out = base64::decode(data_base64)?;

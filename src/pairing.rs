@@ -4,7 +4,7 @@ use crate::constants::{
 };
 use crate::output::Log;
 use anyhow::{anyhow, Result};
-use colored::Color;
+use colored::{Color, Colorize};
 use qrcode::render::unicode;
 use qrcode::{EcLevel, QrCode};
 use serde::{Deserialize, Serialize};
@@ -23,7 +23,10 @@ use whoami::{hostname, username};
 
 pub fn render_qr_code(str: &str) {
     let code = QrCode::with_error_correction_level(str, EcLevel::L).unwrap();
-    let image = code.render::<unicode::Dense1x2>().build();
+    let dark = String::from("\x1B[40m  \x1B[0m");
+    let white = String::from("\x1B[47m  \x1B[0m");
+    let image = code.render()
+         .light_color(white.as_str()).dark_color(dark.as_str()).build();
     println!("{}", image);
 }
 
@@ -132,11 +135,12 @@ pub async fn pair() -> Result<()> {
     println!();
     println!();
     log.println(
-        "📷 Scan this QR code wit the app (https://creekey.io/app)",
+        "📷",
+        "Scan this QR code wit the app (https://creekey.io/app)",
         Color::White,
     )?;
     render_qr_code(json.to_string().as_str());
-    log.println("⏳ Waiting for pairing...", Color::White)?;
+    log.waiting_on("Waiting for pairing...")?;
 
     let response: PairingResponse = match poll_for_message::<PairingResponse>(pairing_id).await {
         Ok(t) => t,
@@ -144,7 +148,7 @@ pub async fn pair() -> Result<()> {
             match e {
                 PollError::Timeout => {
                     // There is an emjoi at the beginning of the string
-                    log.println("❌ Timed out. Please try again.", Color::Red)?;
+                    log.fail("Timed out. Please try again.")?;
                 }
                 _ => {}
             };
@@ -152,19 +156,18 @@ pub async fn pair() -> Result<()> {
         }
     };
 
-    log.println("🏁 Found Pairing!", Color::Green)?;
+    log.success("Found Pairing!")?;
 
     let client_data = decode_pairing_response(client_pk, client_sk, response)?;
-    log.println("💾 Saving Pairing data...", Color::Green)?;
+    log.println("💾", "Saving Pairing data...", Color::Green)?;
 
     write_key_to_disc(client_data.rx)?;
     write_public_ssh_to_disc(client_data.public_key_ssh)?;
     write_phone_id_to_disk(client_data.phone_id)?;
-    log.println("✔️ Done!", Color::Green)?;
+    log.println("✔️", "Done!", Color::Green)?;
 
-    log.println(
-        "➡️ Run 'creekey setup-ssh' to auto set up your ssh configuration",
-        Color::BrightCyan,
+    log.user_todo(
+        "Run 'creekey setup-ssh' to auto set up your ssh configuration",
     )?;
 
     return Ok(());

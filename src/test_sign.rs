@@ -20,7 +20,7 @@ pub async fn test_sign() -> Result<()> {
     payload.insert("data", &base64_data);
     payload.insert("relayId", &relay_id2);
 
-    log.println("⏳ Waiting on Phone Authorization...", Color::Yellow)?;
+    log.waiting_on("Waiting on Phone Authorization...")?;
 
     let response: PhoneSignResponse = match sign_on_phone(payload, phone_id, relay_id, key).await {
         Ok(t) => t,
@@ -29,7 +29,7 @@ pub async fn test_sign() -> Result<()> {
                 SignError::PollError(poll_error) => {
                     match poll_error {
                         PollError::Timeout => {
-                            log.println("❌ Timed out!", Color::Red)?;
+                            log.fail("Timed out!")?;
                         }
                         _ => {}
                     };
@@ -40,9 +40,9 @@ pub async fn test_sign() -> Result<()> {
         }
     };
     if response.accepted {
-        log.println("🏁 Request Accepted!", Color::Green)?;
+        log.success("Request Accepted!")?;
     } else {
-        log.println("❌ Request Rejected!", Color::Red)?;
+        log.fail("Request Rejected!")?;
     }
 
     Ok(())

@@ -15,22 +15,20 @@ pub async fn unpair() -> Result<()> {
     let key = match read_sync_key() {
         Ok(k) => k,
         Err(e) => {
-            log.println(
-                "🚨 Could not read the secret key. Probably already unpaired!",
-                Color::Red,
+            log.error(
+                "Could not read the secret key. Probably already unpaired!"
             )?;
-            log.println(format!("🚨 Error received: {}", e).as_str(), Color::Red)?;
+            log.error(format!("Error received: {}", e).as_str())?;
             return Ok(());
         }
     };
     let phone_id = match read_sync_phone_id() {
         Ok(k) => k,
         Err(e) => {
-            log.println(
-                "🚨 Could not read the phone id. Probably already unpaired!",
-                Color::Red,
+            log.error(
+                "Could not read the phone id. Probably already unpaired!"
             )?;
-            log.println(format!("🚨 Error received: {}", e).as_str(), Color::Red)?;
+            log.error(format!("Error received: {}", e).as_str())?;
             return Ok(());
         }
     };
@@ -48,6 +46,6 @@ pub async fn unpair() -> Result<()> {
     fs::remove_file(get_phone_id_path()?)?;
     fs::remove_file(get_secret_key_path()?)?;
 
-    log.println("🏁 Succesfully Unpaired", Color::Green)?;
+    log.success("Succesfully Unpaired")?;
     Ok(())
 }
