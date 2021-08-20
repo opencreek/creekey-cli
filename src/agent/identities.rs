@@ -21,7 +21,7 @@ pub async fn give_identities(socket: &mut UnixStream, proxies: Vec<SshProxy>) ->
             for proxy in proxies {
                 if let Ok(stream) = std::os::unix::net::UnixStream::connect(&proxy.logger_socket) {
                     let mut log = Log::from_stream(&stream);
-                    log.print_not_paired_error("Could not find ssh key".to_string());
+                    log.print_not_paired_error("Could not find ssh key".to_string())?;
                 }
             }
             respond_with_failure(socket).await?;

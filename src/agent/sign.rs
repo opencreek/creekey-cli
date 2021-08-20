@@ -120,7 +120,7 @@ pub async fn sign_request(
     let key = match read_sync_key() {
         Ok(k) => k,
         Err(e) => {
-            log.handle_read_error("secret key", e);
+            log.handle_read_error("secret key", e)?;
             sleep(Duration::from_millis(10)).await;
             respond_with_failure(socket).await?;
             return Ok(());
@@ -130,7 +130,7 @@ pub async fn sign_request(
     let phone_id = match read_sync_phone_id() {
         Ok(k) => k,
         Err(e) => {
-            log.handle_read_error("phone id", e);
+            log.handle_read_error("phone id", e)?;
             sleep(Duration::from_millis(10)).await;
             respond_with_failure(socket).await?;
             return Ok(());

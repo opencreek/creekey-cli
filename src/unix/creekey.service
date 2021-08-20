@@ -1,0 +1,13 @@
+[Unit]
+Description=Creekey SSS Agent
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=creekey agent
+User=${-$USER}
+
+[Install]
+WantedBy=default.target

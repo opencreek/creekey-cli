@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use clap::ArgMatches;
-use colored::Colorize;
 use os_pipe::{dup_stderr, dup_stdin, dup_stdout};
 
 use ssh_parser::SshPacket;
@@ -15,6 +14,7 @@ use std::process::{Command, Stdio};
 
 use std::thread;
 use std::time::Duration;
+use crate::output::Log;
 
 fn start_logger_proxy() -> Result<String> {
     let random = base64::encode_config(sodiumoxide::randombytes::randombytes(8), base64::URL_SAFE);
@@ -97,12 +97,12 @@ fn parse_second_string(cursor: &mut Cursor<&[u8]>) -> Result<Vec<u8>> {
 
 fn check_running_ssh_agent() -> Result<()> {
     if !is_agent_running()? {
-        eprintln!("{}", "Starting Daemon...".red().to_string());
+        Log::NONE.waiting_on("Starting Daemon...")?;
         let self_arg = &std::env::args().collect::<Vec<String>>()[0];
-        eprintln!("{}", self_arg);
 
         let _child = Command::new(self_arg)
             .arg("agent")
+            .arg("-d")
             .stdout(Stdio::null())
             .stdin(Stdio::null())
             .stderr(Stdio::null())
@@ -121,10 +121,11 @@ pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
 
     let host = matches
         .value_of("host")
-        .context("No host given for proxy.")?;
+        .context("No host given for proxy. usage:\ncreekey proxy <host> <port>\n See 'crekey setupssh' for more instructions")?;
+
     let port = matches
         .value_of("port")
-        .context("No port given for proxy")?;
+        .context("No port given for proxy. usage:\ncreekey proxy <host> <port>\n See 'crekey setupssh' for more instructions")?;
 
     let host_name = String::new() + host + ":" + port;
 

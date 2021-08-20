@@ -1,7 +1,6 @@
 use crate::ssh_agent::ReadError;
 use anyhow::Result;
 use colored::{Color, Colorize};
-use futures::AsyncWriteExt;
 use std::env;
 use std::fs::File;
 use std::io::Write;
@@ -42,22 +41,28 @@ impl<'a> Log<'a> {
         self.println("🏁", line, Color::Green)
     }
 
+    pub fn info(&self, line: &str) -> Result<()> {
+        self.println("ℹ️", line, Color::White)
+    }
+
     pub fn user_todo(&self, line: &str) -> Result<()> {
         self.println("➡️", line, Color::BrightCyan)
     }
 
-    pub fn println(&self, emoji: &str, line: &str, color: Color) -> Result<()> {
+    pub fn print(&self, emoji: &str, line: &str, color: Color) -> Result<()> {
         let string = string_log(emoji, line, color);
         if let Some(mut out) = self.file {
             out.write_all(string.as_bytes())?;
-            out.write_all("\n".as_bytes())?;
         }
         if let Some(mut out) = self.stream {
             out.write_all(string.as_bytes())?;
-            out.write_all("\n".as_bytes())?;
         }
-        eprintln!("{}", string);
+        eprint!("{}", string);
         Ok(())
+    }
+
+    pub fn println(&self, emoji: &str, line: &str, color: Color) -> Result<()> {
+        self.print(emoji, format!("{}\n", line).as_str(), color)
     }
 
     pub fn from_file<'b>(file: &'b File) -> Log<'b> {

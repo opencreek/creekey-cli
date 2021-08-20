@@ -12,10 +12,10 @@ pub fn print_ssh_key(copy_to_clipboard: bool, raw: bool) -> Result<()> {
                 .map_err(|_err| anyhow!("Could not create ClipboardProvider"))?;
             ctx.set_contents(key.clone()).map_err(|err| {
                 println!("{}", err);
-                log.error("Could not set clipboard");
+                log.error("Could not set clipboard").unwrap();
                 anyhow!("error setting clipboard")
             })?;
-            log.error("Copied to clipboard");
+            log.success("Copied to clipboard")?;
         } else {
             log.user_todo("You can use '--copy' to automatically copy the key to your clipboard")?;
         }
@@ -27,7 +27,7 @@ pub fn print_ssh_key(copy_to_clipboard: bool, raw: bool) -> Result<()> {
     if !raw {
         println!();
 
-        log.user_todo("Copy the public key above to wherever you are using");
+        log.user_todo("Copy the public key above to wherever you are using")?;
     }
 
     Ok(())

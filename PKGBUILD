@@ -12,9 +12,10 @@ arch=("x86_64")
 provides=("creekey")
 conflicts=("creekey")
 source=("https://github.com/opencreek/creekey/releases/download/v$pkgver/creekey-$pkgver-x86_64.tar.gz")
-sha256sums=("aa4190f0a199333c495151d393175cceded3e3e4408a1060b459784c9c7a5863")
+sha256sums=("bc8caf3e3c74fcaf8e1e65a083e6b1f58533ea7dbb0c9046a0d5e85ec87ec384")
 
 package() {
     install -Dm755 creekey -t "$pkgdir/usr/bin"
+    install -Dm644 "${srcdir}"/unix/creekey.service "$pkgdir"~/.config/systemd/user/creekey.service
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
