@@ -137,7 +137,7 @@ pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProx
     let ret = proxies.iter().find(|it| {
         if let Ok((algo, _key_data)) = parse_key_data(it.key.clone()) {
             eprintln!("{}", algo);
-            if algo == "ssh-ed25519" {
+            if algo == "ssh-ed25519" || algo == "ssh-rsa" {
                 if let Ok(pk) = parse_public_key(&it.key) {
                     eprintln!("Could parse pk!");
                     let ret = pk.verify_detached(session_hash, &it.signature);
