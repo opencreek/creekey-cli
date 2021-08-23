@@ -97,7 +97,10 @@ fn check_running_ssh_agent() -> Result<()> {
             .spawn()
             .unwrap();
 
-        thread::sleep(Duration::from_millis(1000))
+        while !is_agent_running()? {
+            thread::sleep(Duration::from_millis(10))
+        }
+
     }
     Ok(())
 }
