@@ -9,16 +9,16 @@ use byteorder::{BigEndian, ReadBytesExt};
 use futures::channel::mpsc::UnboundedSender;
 use futures::SinkExt;
 
-use sodiumoxide::crypto::sign;
+
 use sodiumoxide::randombytes::randombytes;
 use std::collections::HashMap;
-use std::convert::TryInto;
+
 use std::io::{Cursor, Read};
 
 use crate::output::Log;
 
 use anyhow::anyhow;
-use ecdsa::elliptic_curve::FieldBytes;
+
 use ring_compat::generic_array::GenericArray;
 use ring_compat::signature::ecdsa::p256::NistP256;
 use ring_compat::signature::ecdsa::p384::NistP384;
@@ -129,7 +129,7 @@ pub fn verify_ecdsa_signature_detached(proxy: &SshProxy, session_hash: &[u8]) ->
 pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProxy> {
     eprintln!("------- finding proxy!");
     let ret = proxies.iter().find(|it| {
-        if let Ok((algo, key_data)) = parse_key_data(it.key.clone()) {
+        if let Ok((algo, _key_data)) = parse_key_data(it.key.clone()) {
             eprintln!("{}", algo);
             if algo == "ssh-ed25519" {
                 if let Ok(pk) = parse_public_key(&it.key) {
