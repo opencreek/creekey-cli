@@ -21,6 +21,8 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::time::{sleep, Duration};
 use thrussh_keys::key::parse_public_key;
+use ring_compat::signature::Verifier;
+use ring_compat::signature::ecdsa::p256::NistP256;
 
 fn parse_user_name(data: Vec<u8>) -> Result<String> {
     let mut cursor = Cursor::new(data);
@@ -40,6 +42,21 @@ fn parse_user_name(data: Vec<u8>) -> Result<String> {
     Ok(String::from_utf8(name)?)
 }
 
+fn parse_key_data(data: Vec<u8>) -> Result<(String, Vec<u8>)> {
+    let mut cursor = Cursor::new(data);
+
+    let length1 = cursor.read_i32::<BigEndian>()?;
+    let mut key_algo = vec![0u8; length1 as usize];
+    cursor.read_exact(&mut key_algo)?;
+    cursor.read_u8()?;
+
+    let key_data = cursor.read_i32::<BigEndian>()?;
+    let mut name = vec![0u8; key_data as usize];
+    cursor.read_exact(&mut name)?;
+
+    Ok((String::from_utf8(name)?, key_algo))
+}
+
 pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProxy> {
     eprintln!("------- finding proxy!");
     let ret = proxies.iter().find(|it| {
@@ -50,8 +67,30 @@ pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProx
 
             ret
         } else {
-            eprintln!("Could not parse PK!");
-            false
+            if let Ok((algo, key_data)) = parse_key_data(it.key.clone()) {
+                if algo == "ecdsa-sha2-nistp256" {
+                    if let Ok(pk) = ring_compat::signature::ecdsa::VerifyingKey::<NistP256>::new(&key_data) {
+                        eprintln!("Could parse ecdsa pk!");
+                        if let Ok(sig) = ring_compat::signature::ecdsa::Signature::from_der(&it.signature) {
+                            match pk.verify(session_hash, &sig) {
+                                Ok(_) => true,
+                                Err(_) => false
+                            }
+                        } else {
+                            eprintln!("Could not parse sig for ecdsa");
+                            false
+                        }
+                    } else {
+                        eprintln!("Could not parse verifying key for ecdsa");
+                        false
+                    }
+                } else {
+                    eprintln!("Not ecdsa sig!");
+                    false
+                }
+            } else {
+                false
+            }
         }
     });
 

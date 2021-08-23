@@ -34,6 +34,8 @@ sha2="0.9.5"
 futures="0.3"
 tokio= { version = "1.10.0", features=["full"]}
 thrussh-keys="0.21.0"
+ecdsa= { version="0.12.4"}
+ring-compat={ version="0.3.1", features=["signature"]}
 
 [[bin]]
 name = "creekey-git-sign"
