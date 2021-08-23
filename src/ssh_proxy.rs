@@ -150,8 +150,6 @@ pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
                         let (packet, _) = parsed_data;
                         match packet {
                             SshPacket::DiffieHellmanReply(init) => {
-                                let mut cursor = Cursor::new(init.pubkey_and_cert);
-                                let key = parse_second_string(&mut cursor).unwrap();
 
                                 let mut cursor_sig = Cursor::new(init.signature);
                                 let signature = parse_second_string(&mut cursor_sig).unwrap();
@@ -160,7 +158,7 @@ pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
                                     &host_name,
                                     &socket,
                                     signature.as_slice(),
-                                    key.as_slice(),
+                                    init.pubkey_and_cert
                                 )
                                 .unwrap();
                                 // thread::sleep(Duration::from_millis(300))

@@ -9,7 +9,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use futures::channel::mpsc::UnboundedSender;
 use futures::SinkExt;
 
-use sodiumoxide::crypto::sign::{self, PublicKey, Signature};
+use sodiumoxide::crypto::sign;
 use sodiumoxide::randombytes::randombytes;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -20,6 +20,7 @@ use crate::output::Log;
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::time::{sleep, Duration};
+use thrussh_keys::key::parse_public_key;
 
 fn parse_user_name(data: Vec<u8>) -> Result<String> {
     let mut cursor = Cursor::new(data);
@@ -40,16 +41,16 @@ fn parse_user_name(data: Vec<u8>) -> Result<String> {
 }
 
 pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProxy> {
+    eprintln!("------- finding proxy!");
     let ret = proxies.iter().find(|it| {
-        if let Ok(sig_bytes) = it.signature.as_slice().try_into() {
-            if let Some(pk) = &PublicKey::from_slice(it.key.as_slice()) {
-                let sig = &Signature::new(sig_bytes);
-                let verification = sign::verify_detached(sig, session_hash, pk);
-                verification
-            } else {
-                false
-            }
+        if let Ok(pk) = parse_public_key(&it.key) {
+            eprintln!("Could parse pk!");
+            let ret = pk.verify_detached(session_hash, &it.signature);
+            eprintln!("verification: {}", ret);
+
+            ret
         } else {
+            eprintln!("Could not parse PK!");
             false
         }
     });
