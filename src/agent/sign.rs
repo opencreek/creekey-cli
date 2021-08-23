@@ -129,24 +129,28 @@ pub fn verify_ecdsa_signature_detached(proxy: &SshProxy, session_hash: &[u8]) ->
 pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProxy> {
     eprintln!("------- finding proxy!");
     let ret = proxies.iter().find(|it| {
-        if let Ok(pk) = parse_public_key(&it.key) {
-            eprintln!("Could parse pk!");
-            let ret = pk.verify_detached(session_hash, &it.signature);
-            eprintln!("verification: {}", ret);
+        if let Ok((algo, key_data)) = parse_key_data(it.key.clone()) {
+            eprintln!("{}", algo);
+            if algo == "ssh-ed25519" {
+                if let Ok(pk) = parse_public_key(&it.key) {
+                    eprintln!("Could parse pk!");
+                    let ret = pk.verify_detached(session_hash, &it.signature);
+                    eprintln!("verification: {}", ret);
 
-            ret
-        } else {
-            if let Ok((algo, key_data)) = parse_key_data(it.key.clone()) {
-                if algo.starts_with("ecdsa") {
-                    verify_ecdsa_signature_detached(it, session_hash)
+                    ret
                 } else {
-                    eprintln!("Not supported key algo!");
+                    eprintln!("Could not parse ed25519 key!");
                     false
                 }
+            } else if algo.starts_with("ecdsa") {
+                verify_ecdsa_signature_detached(it, session_hash)
             } else {
-                eprintln!("Could not parse key data");
+                eprintln!("Not supported key algo: {}!", algo);
                 false
             }
+        } else {
+            eprintln!("Could not parse key data");
+            false
         }
     });
 
