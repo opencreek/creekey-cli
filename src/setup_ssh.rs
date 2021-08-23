@@ -1,8 +1,8 @@
-use anyhow::{Context, Result};
-use std::fs::OpenOptions;
-use std::io::{Read, Write, stdin};
 use crate::output::Log;
+use anyhow::{Context, Result};
 use colored::Color;
+use std::fs::OpenOptions;
+use std::io::{stdin, Read, Write};
 
 const SSH_CONF: &str = "# creekey config v1\nHost *\n\tIdentityAgent /tmp/ck-ssh-agent.sock\n\tProxyCommand creekey proxy %h %p\n# /creekey config";
 
@@ -14,7 +14,11 @@ pub fn setup_ssh(force: bool) -> Result<()> {
     path.push("config");
 
     if !force {
-        log.print("❓", "You want creekey to auto-configure your ssh setup? [y/n] ", Color::Cyan)?;
+        log.print(
+            "❓",
+            "You want creekey to auto-configure your ssh setup? [y/n] ",
+            Color::Cyan,
+        )?;
     }
 
     let mut input = String::new();

@@ -5,19 +5,19 @@ mod constants;
 mod me;
 mod output;
 mod pairing;
+mod setup_git;
 mod setup_ssh;
 mod sign_on_phone;
 mod ssh_agent;
 mod ssh_proxy;
 mod test_sign;
 mod unpair;
-mod setup_git;
 
 use crate::me::print_ssh_key;
 use crate::output::Log;
 use crate::pairing::pair;
-use crate::setup_ssh::setup_ssh;
 use crate::setup_git::setup_git;
+use crate::setup_ssh::setup_ssh;
 use crate::ssh_agent::start_agent;
 use crate::ssh_proxy::start_ssh_proxy;
 use crate::test_sign::test_sign;
@@ -74,7 +74,9 @@ async fn main() -> Result<()> {
     let matches = app.clone().get_matches();
 
     panic::set_hook(Box::new(|e| {
-        Log::NONE.panic(format!("Panicked with error: {}", e).as_str()).unwrap();
+        Log::NONE
+            .panic(format!("Panicked with error: {}", e).as_str())
+            .unwrap();
     }));
 
     let ret = match matches.subcommand() {

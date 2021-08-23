@@ -12,9 +12,9 @@ use std::net::{Shutdown, TcpStream};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::{Command, Stdio};
 
+use crate::output::Log;
 use std::thread;
 use std::time::Duration;
-use crate::output::Log;
 
 fn start_logger_proxy() -> Result<String> {
     let random = base64::encode_config(sodiumoxide::randombytes::randombytes(8), base64::URL_SAFE);
@@ -150,7 +150,6 @@ pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
                         let (packet, _) = parsed_data;
                         match packet {
                             SshPacket::DiffieHellmanReply(init) => {
-
                                 let mut cursor_sig = Cursor::new(init.signature);
                                 let signature = parse_second_string(&mut cursor_sig).unwrap();
 
@@ -158,7 +157,7 @@ pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
                                     &host_name,
                                     &socket,
                                     signature.as_slice(),
-                                    init.pubkey_and_cert
+                                    init.pubkey_and_cert,
                                 )
                                 .unwrap();
                                 // thread::sleep(Duration::from_millis(300))

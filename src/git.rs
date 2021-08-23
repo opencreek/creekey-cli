@@ -1,10 +1,10 @@
+mod agent;
+mod communication;
+mod constants;
 #[allow(dead_code)] // because we have multiple entry points.
 mod output;
-mod communication;
 mod sign_on_phone;
-mod constants;
 mod ssh_agent;
-mod agent;
 
 use crate::communication::PollError;
 use crate::output::{check_color_tty, Log};

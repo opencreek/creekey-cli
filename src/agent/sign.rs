@@ -17,14 +17,16 @@ use std::io::{Cursor, Read};
 
 use crate::output::Log;
 
+use anyhow::anyhow;
+use ecdsa::elliptic_curve::FieldBytes;
+use ring_compat::generic_array::GenericArray;
+use ring_compat::signature::ecdsa::p256::NistP256;
+use ring_compat::signature::ecdsa::p384::NistP384;
+use ring_compat::signature::Verifier;
+use thrussh_keys::key::parse_public_key;
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::time::{sleep, Duration};
-use thrussh_keys::key::parse_public_key;
-use ring_compat::signature::Verifier;
-use ring_compat::signature::ecdsa::p256::NistP256;
-use ring_compat::generic_array::GenericArray;
-use ecdsa::elliptic_curve::FieldBytes;
 
 fn parse_user_name(data: Vec<u8>) -> Result<String> {
     let mut cursor = Cursor::new(data);
@@ -63,8 +65,8 @@ fn parse_key_data(data: Vec<u8>) -> Result<(String, Vec<u8>)> {
 
     Ok((String::from_utf8(key_algo)?, key_data))
 }
-fn parse_ecdsa_sig(data: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>)> {
 
+fn parse_ecdsa_sig(data: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>)> {
     let mut cursor = Cursor::new(data);
 
     let r_length = cursor.read_i32::<BigEndian>()?;
@@ -72,10 +74,56 @@ fn parse_ecdsa_sig(data: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>)> {
     cursor.read_exact(&mut r)?;
 
     let t_length = cursor.read_i32::<BigEndian>()?;
-    let mut t  = vec![0u8; t_length as usize];
-    cursor.read_exact(&mut t)?;
+    let mut s = vec![0u8; t_length as usize];
+    cursor.read_exact(&mut s)?;
 
-    Ok((r, t))
+    Ok((r, s))
+}
+
+pub fn verify_ecdsa_signature(it: &SshProxy, session_hash: &[u8]) -> Result<bool> {
+    let (algo, key_data) = parse_key_data(it.key.clone())?;
+
+    if algo == "ecdsa-sha2-nistp256" {
+        let pk = ring_compat::signature::ecdsa::VerifyingKey::<NistP256>::new(&key_data)
+            .map_err(|_| anyhow!("Could not parse pk"))?;
+        let (r, s) = parse_ecdsa_sig(it.signature.clone())?;
+
+        let r_gen = GenericArray::clone_from_slice(&r);
+        let s_gen = GenericArray::clone_from_slice(&s);
+        let sig = ring_compat::signature::ecdsa::Signature::<NistP256>::from_scalars(r_gen, s_gen)
+            .map_err(|_| anyhow!("could not get signature"))?;
+
+        Ok(match pk.verify(session_hash, &sig) {
+            Ok(_) => true,
+            Err(_) => false,
+        })
+    } else if algo == "ecdsa-sha-2-nistp384" {
+        let pk = ring_compat::signature::ecdsa::VerifyingKey::<NistP384>::new(&key_data)
+            .map_err(|_| anyhow!("could not parse pk"))?;
+        let (r, s) = parse_ecdsa_sig(it.signature.clone())?;
+
+        let r_gen = GenericArray::clone_from_slice(&r);
+        let s_gen = GenericArray::clone_from_slice(&s);
+        let sig = ring_compat::signature::ecdsa::Signature::<NistP384>::from_scalars(r_gen, s_gen)
+            .map_err(|_| anyhow!("could not get signature"))?;
+
+        Ok(match pk.verify(session_hash, &sig) {
+            Ok(_) => true,
+            Err(_) => false,
+        })
+    } else {
+        Ok(false)
+    }
+}
+
+pub fn verify_ecdsa_signature_detached(proxy: &SshProxy, session_hash: &[u8]) -> bool {
+    match verify_ecdsa_signature(proxy, session_hash) {
+        Ok(b) => b,
+        Err(e) => {
+            eprint!("error while ecdsa verification: {}", e);
+            false
+        }
+    }
 }
 
 pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProxy> {
@@ -88,37 +136,11 @@ pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProx
 
             ret
         } else {
-            if let (algo, key_data) = parse_key_data(it.key.clone()).unwrap() {
-                if algo == "ecdsa-sha2-nistp256" {
-                    let mat = ring_compat::signature::ecdsa::VerifyingKey::<NistP256>::new(&key_data);
-                    if let Ok(pk) = mat {
-                        eprintln!("Could parse ecdsa pk!");
-
-                        if let Ok((r, s)) = parse_ecdsa_sig(it.signature.clone()) {
-                            let r_gen = GenericArray::clone_from_slice(&r);
-                            let s_gen = GenericArray::clone_from_slice(&s);
-                            let sig_res = ring_compat::signature::ecdsa::Signature::<NistP256>::from_scalars(r_gen, s_gen);
-
-                            if let Ok(sig) = sig_res{
-                                match pk.verify(session_hash, &sig) {
-                                    Ok(_) => true,
-                                    Err(_) => false
-                                }
-                            } else {
-                                eprintln!("Could not parse sig for ecdsa: {}", sig_res.unwrap_err());
-                                eprintln!("signature data: {} len; {:X?}", it.signature.len(), it.signature);
-                                false
-                            }
-                        } else {
-                            false
-                        }
-                    } else {
-                        eprintln!("Could not parse verifying key for ecdsa: {}", mat.unwrap_err());
-                        eprintln!("key data: {} len; {:X?}", it.key.len(), it.key);
-                        false
-                    }
+            if let Ok((algo, key_data)) = parse_key_data(it.key.clone()) {
+                if algo.starts_with("ecdsa") {
+                    verify_ecdsa_signature_detached(it, session_hash)
                 } else {
-                    eprintln!("Not ecdsa sig!");
+                    eprintln!("Not supported key algo!");
                     false
                 }
             } else {
