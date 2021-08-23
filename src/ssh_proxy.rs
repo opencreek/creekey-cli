@@ -83,18 +83,6 @@ fn send_info_packet(host: &str, socket_path: &str, signature: &[u8], key: &[u8])
     Ok(())
 }
 
-fn parse_second_string(cursor: &mut Cursor<&[u8]>) -> Result<Vec<u8>> {
-    let first_size = cursor.read_i32::<BigEndian>()?;
-    let mut buffer_first = vec![0u8; first_size as usize];
-    cursor.read_exact(&mut buffer_first)?;
-
-    let ret_length = cursor.read_i32::<BigEndian>()?;
-    let mut ret = vec![0u8; ret_length as usize];
-    cursor.read_exact(&mut ret)?;
-
-    return Ok(ret);
-}
-
 fn check_running_ssh_agent() -> Result<()> {
     if !is_agent_running()? {
         Log::NONE.waiting_on("Starting Daemon...")?;
@@ -150,13 +138,10 @@ pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
                         let (packet, _) = parsed_data;
                         match packet {
                             SshPacket::DiffieHellmanReply(init) => {
-                                let mut cursor_sig = Cursor::new(init.signature);
-                                let signature = parse_second_string(&mut cursor_sig).unwrap();
-
                                 send_info_packet(
                                     &host_name,
                                     &socket,
-                                    signature.as_slice(),
+                                    init.signature,
                                     init.pubkey_and_cert,
                                 )
                                 .unwrap();

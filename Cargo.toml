@@ -10,7 +10,6 @@ homepage = "https://creekey.io"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arrayref = "0.3.6"
 ctrlc = "3.1.9"
 base64 = "0.13.0"
 dirs = "3.0.2"
@@ -33,9 +32,10 @@ ssh-parser="0.4.0"
 sha2="0.9.5"
 futures="0.3"
 tokio= { version = "1.10.0", features=["full"]}
-thrussh-keys="0.21.0"
+thrussh-keys={verssion="0.21.0", features=["openssl"]}
 ecdsa= { version="0.12.4"}
 ring-compat={ version="0.3.1", features=["signature"]}
+openssl="0.10.36"
 
 [[bin]]
 name = "creekey-git-sign"

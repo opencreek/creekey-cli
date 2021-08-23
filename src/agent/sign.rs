@@ -9,7 +9,6 @@ use byteorder::{BigEndian, ReadBytesExt};
 use futures::channel::mpsc::UnboundedSender;
 use futures::SinkExt;
 
-
 use sodiumoxide::randombytes::randombytes;
 use std::collections::HashMap;
 
@@ -23,7 +22,8 @@ use ring_compat::generic_array::GenericArray;
 use ring_compat::signature::ecdsa::p256::NistP256;
 use ring_compat::signature::ecdsa::p384::NistP384;
 use ring_compat::signature::Verifier;
-use thrussh_keys::key::parse_public_key;
+use std::convert::TryInto;
+use thrussh_keys::key::{parse_public_key, OpenSSLPKey, PublicKey, SignatureHash};
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::time::{sleep, Duration};
@@ -66,13 +66,35 @@ fn parse_key_data(data: Vec<u8>) -> Result<(String, Vec<u8>)> {
     Ok((String::from_utf8(key_algo)?, key_data))
 }
 
+fn parse_first_string(cursor: &mut Cursor<Vec<u8>>) -> Result<Vec<u8>> {
+    let first_size = cursor.read_i32::<BigEndian>()?;
+    let mut buffer_first = vec![0u8; first_size as usize];
+    cursor.read_exact(&mut buffer_first)?;
+    return Ok(buffer_first);
+}
+
+fn parse_second_string(cursor: &mut Cursor<Vec<u8>>) -> Result<Vec<u8>> {
+    let first_size = cursor.read_i32::<BigEndian>()?;
+    let mut buffer_first = vec![0u8; first_size as usize];
+    cursor.read_exact(&mut buffer_first)?;
+
+    let ret_length = cursor.read_i32::<BigEndian>()?;
+    let mut ret = vec![0u8; ret_length as usize];
+    cursor.read_exact(&mut ret)?;
+
+    return Ok(ret);
+}
+
 fn parse_ecdsa_sig(data: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>)> {
     let mut cursor = Cursor::new(data);
+    let sig = parse_second_string(&mut cursor)?;
+
+    let mut cursor = Cursor::new(sig);
 
     let r_length = cursor.read_i32::<BigEndian>()?;
     let mut r = vec![0u8; r_length as usize];
     cursor.read_exact(&mut r)?;
-    if r.len() %2 != 0 {
+    if r.len() % 2 != 0 {
         r.remove(0);
     }
 
@@ -80,10 +102,23 @@ fn parse_ecdsa_sig(data: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>)> {
     let mut s = vec![0u8; t_length as usize];
     cursor.read_exact(&mut s)?;
 
-    if s.len() %2 != 0 {
+    if s.len() % 2 != 0 {
         s.remove(0);
     }
     Ok((r, s))
+}
+
+fn parse_rsa_sig(data: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>)> {
+    let mut cursor = Cursor::new(data);
+
+    let name_length = cursor.read_i32::<BigEndian>()?;
+    let mut name = vec![0u8; name_length as usize];
+
+    let sig_length = cursor.read_i32::<BigEndian>()?;
+    let mut sig = vec![0u8; sig_length as usize];
+    cursor.read_exact(&mut sig)?;
+
+    Ok((name, sig))
 }
 
 pub fn verify_ecdsa_signature(it: &SshProxy, session_hash: &[u8]) -> Result<bool> {
@@ -132,33 +167,50 @@ pub fn verify_ecdsa_signature_detached(proxy: &SshProxy, session_hash: &[u8]) ->
     }
 }
 
+pub fn check_signature(it: &SshProxy, session_hash: &[u8]) -> Result<bool> {
+    eprintln!("key: {:X?}", it.key);
+    eprintln!("signature: {:X?}", it.signature);
+    let mut cursor = Cursor::new(it.signature.clone());
+
+    let sig_name = parse_first_string(&mut cursor).unwrap();
+    let sig_data = parse_first_string(&mut cursor).unwrap();
+
+    eprintln!("signature name: {}", String::from_utf8(sig_name.clone())?);
+
+    let (algo, _key_data) = parse_key_data(it.key.clone()).unwrap();
+
+    eprintln!("algo: {}", algo);
+    if algo == "ssh-ed25519" {
+        let pk = parse_public_key(&it.key)?;
+        eprintln!("Could parse pk!");
+        let ret = pk.verify_detached(session_hash, &sig_data);
+        eprintln!("verification: {}", ret);
+
+        return Ok(ret);
+    } else if algo.starts_with("ssh-rsa") {
+        let pk = PublicKey::parse(&sig_name, &it.key)?;
+
+        let ret = pk.verify_detached(session_hash, &sig_data);
+
+        eprintln!("verification: {}", ret);
+        return Ok(ret);
+    } else if algo.starts_with("ecdsa") {
+        return Ok(verify_ecdsa_signature_detached(it, session_hash));
+    }
+    return Err(anyhow!("not suppoorted algo"));
+}
+
 pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProxy> {
     eprintln!("------- finding proxy!");
-    let ret = proxies.iter().find(|it| {
-        if let Ok((algo, _key_data)) = parse_key_data(it.key.clone()) {
-            eprintln!("{}", algo);
-            if algo == "ssh-ed25519" || algo == "ssh-rsa" {
-                if let Ok(pk) = parse_public_key(&it.key) {
-                    eprintln!("Could parse pk!");
-                    let ret = pk.verify_detached(session_hash, &it.signature);
-                    eprintln!("verification: {}", ret);
-
-                    ret
-                } else {
-                    eprintln!("Could not parse ed25519 key!");
-                    false
-                }
-            } else if algo.starts_with("ecdsa") {
-                verify_ecdsa_signature_detached(it, session_hash)
-            } else {
-                eprintln!("Not supported key algo: {}!", algo);
+    let ret = proxies
+        .iter()
+        .find(|it| match check_signature(it, session_hash) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("error while verification: {}", e);
                 false
             }
-        } else {
-            eprintln!("Could not parse key data");
-            false
-        }
-    });
+        });
 
     match ret {
         Some(r) => Some(r.clone()),
