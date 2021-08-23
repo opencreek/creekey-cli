@@ -23,6 +23,8 @@ use tokio::time::{sleep, Duration};
 use thrussh_keys::key::parse_public_key;
 use ring_compat::signature::Verifier;
 use ring_compat::signature::ecdsa::p256::NistP256;
+use ring_compat::generic_array::GenericArray;
+use ecdsa::elliptic_curve::FieldBytes;
 
 fn parse_user_name(data: Vec<u8>) -> Result<String> {
     let mut cursor = Cursor::new(data);
@@ -48,13 +50,32 @@ fn parse_key_data(data: Vec<u8>) -> Result<(String, Vec<u8>)> {
     let length1 = cursor.read_i32::<BigEndian>()?;
     let mut key_algo = vec![0u8; length1 as usize];
     cursor.read_exact(&mut key_algo)?;
-    cursor.read_u8()?;
 
-    let key_data = cursor.read_i32::<BigEndian>()?;
-    let mut name = vec![0u8; key_data as usize];
-    cursor.read_exact(&mut name)?;
+    if key_algo == b"ecdsa-sha2-nistp256" {
+        let length = cursor.read_i32::<BigEndian>()?;
+        let mut data = vec![0u8; length as usize];
+        cursor.read_exact(&mut data)?;
+    }
 
-    Ok((String::from_utf8(name)?, key_algo))
+    let name_length = cursor.read_i32::<BigEndian>()?;
+    let mut key_data = vec![0u8; name_length as usize];
+    cursor.read_exact(&mut key_data)?;
+
+    Ok((String::from_utf8(key_algo)?, key_data))
+}
+fn parse_ecdsa_sig(data: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>)> {
+
+    let mut cursor = Cursor::new(data);
+
+    let r_length = cursor.read_i32::<BigEndian>()?;
+    let mut r = vec![0u8; r_length as usize];
+    cursor.read_exact(&mut r)?;
+
+    let t_length = cursor.read_i32::<BigEndian>()?;
+    let mut t  = vec![0u8; t_length as usize];
+    cursor.read_exact(&mut t)?;
+
+    Ok((r, t))
 }
 
 pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProxy> {
@@ -67,21 +88,33 @@ pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProx
 
             ret
         } else {
-            if let Ok((algo, key_data)) = parse_key_data(it.key.clone()) {
+            if let (algo, key_data) = parse_key_data(it.key.clone()).unwrap() {
                 if algo == "ecdsa-sha2-nistp256" {
-                    if let Ok(pk) = ring_compat::signature::ecdsa::VerifyingKey::<NistP256>::new(&key_data) {
+                    let mat = ring_compat::signature::ecdsa::VerifyingKey::<NistP256>::new(&key_data);
+                    if let Ok(pk) = mat {
                         eprintln!("Could parse ecdsa pk!");
-                        if let Ok(sig) = ring_compat::signature::ecdsa::Signature::from_der(&it.signature) {
-                            match pk.verify(session_hash, &sig) {
-                                Ok(_) => true,
-                                Err(_) => false
+
+                        if let Ok((r, s)) = parse_ecdsa_sig(it.signature.clone()) {
+                            let r_gen = GenericArray::clone_from_slice(&r);
+                            let s_gen = GenericArray::clone_from_slice(&s);
+                            let sig_res = ring_compat::signature::ecdsa::Signature::<NistP256>::from_scalars(r_gen, s_gen);
+
+                            if let Ok(sig) = sig_res{
+                                match pk.verify(session_hash, &sig) {
+                                    Ok(_) => true,
+                                    Err(_) => false
+                                }
+                            } else {
+                                eprintln!("Could not parse sig for ecdsa: {}", sig_res.unwrap_err());
+                                eprintln!("signature data: {} len; {:X?}", it.signature.len(), it.signature);
+                                false
                             }
                         } else {
-                            eprintln!("Could not parse sig for ecdsa");
                             false
                         }
                     } else {
-                        eprintln!("Could not parse verifying key for ecdsa");
+                        eprintln!("Could not parse verifying key for ecdsa: {}", mat.unwrap_err());
+                        eprintln!("key data: {} len; {:X?}", it.key.len(), it.key);
                         false
                     }
                 } else {
@@ -89,6 +122,7 @@ pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProx
                     false
                 }
             } else {
+                eprintln!("Could not parse key data");
                 false
             }
         }
