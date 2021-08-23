@@ -72,11 +72,17 @@ fn parse_ecdsa_sig(data: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>)> {
     let r_length = cursor.read_i32::<BigEndian>()?;
     let mut r = vec![0u8; r_length as usize];
     cursor.read_exact(&mut r)?;
+    if r.len() %2 != 0 {
+        r.remove(0);
+    }
 
     let t_length = cursor.read_i32::<BigEndian>()?;
     let mut s = vec![0u8; t_length as usize];
     cursor.read_exact(&mut s)?;
 
+    if s.len() %2 != 0 {
+        s.remove(0);
+    }
     Ok((r, s))
 }
 
