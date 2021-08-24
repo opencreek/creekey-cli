@@ -80,7 +80,7 @@ mod public_key_serializer {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct PairingRequest<'a> {
+struct PairingRequest {
     public_key: PublicKey,
 
     pairing_key: Vec<u8>,
@@ -151,12 +151,13 @@ pub async fn pair(small: bool) -> Result<()> {
     create_config_folder()?;
     let log = Log::NONE;
 
-    let pairing_id = randombytes(16);
+    let pairing_id_bytes = randombytes(16);
+    let pairing_id = base64::encode_config(&pairing_id_bytes, base64::URL_SAFE);
     let hostname = hostname();
     let username = username();
     let exchange = PairingRequest {
         public_key: client_pk,
-        pairing_key: pairing_id,
+        pairing_key: pairing_id_bytes,
         client_name: hostname.into(),
         local_user_name: username.into(),
         version: "0.1.0".to_string(),
