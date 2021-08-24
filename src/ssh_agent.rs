@@ -6,7 +6,7 @@ use anyhow::Result;
 use daemonize::Daemonize;
 use futures::channel::mpsc::unbounded;
 
-use futures::StreamExt;
+use futures::{StreamExt, SinkExt};
 
 use serde::{Deserialize, Serialize};
 use sodiumoxide::crypto::secretbox;
@@ -22,6 +22,8 @@ use tokio::task;
 
 use crate::agent::handle::read_and_handle_packet;
 use crate::output::{check_color_tty, Log};
+use tokio::time::{sleep, Duration};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn cleanup_socket() {
     let _ = std::fs::remove_file("/tmp/ck-ssh-agent.sock").unwrap_or(());
@@ -89,7 +91,9 @@ pub struct SshProxy {
     pub logger_socket: String,
     pub signature: Vec<u8>,
     pub key: Vec<u8>,
+    pub saved_at: u64,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PhoneSignResponse {
     pub signature: Option<String>,
@@ -110,7 +114,7 @@ pub async fn start_agent(should_daemonize: bool) -> Result<()> {
         cleanup_socket();
         std::process::exit(0);
     })
-    .expect("couldn't set ctrlc handler");
+        .expect("couldn't set ctrlc handler");
 
     cleanup_socket();
 
@@ -125,6 +129,7 @@ pub async fn start_agent(should_daemonize: bool) -> Result<()> {
 
     let (new_proxy_send, mut new_proxy_receive) = unbounded::<SshProxy>();
     let (remove_proxy_send, mut remove_proxy_receive) = unbounded::<SshProxy>();
+    let mut interval = tokio::time::interval(Duration::from_secs(60));
 
     loop {
         select! {
@@ -160,7 +165,21 @@ pub async fn start_agent(should_daemonize: bool) -> Result<()> {
 
                     ()
                 });
-            },
+            }
+            x = interval.tick() => {
+                let mutex = proxies.clone();
+                let mut vec = mutex.lock().unwrap();
+                let mut remove_proxy_send = remove_proxy_send.clone();
+                let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+
+                for proxy in vec.iter() {
+                    if now - proxy.saved_at > 5 * 60 {
+                        remove_proxy_send.send(proxy.clone()).await;
+                    }
+                }
+
+                ()
+            }
         }
     }
 }
