@@ -81,16 +81,11 @@ mod public_key_serializer {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct PairingRequest<'a> {
-    #[serde(with = "public_key_serializer", rename = "pk")]
     public_key: PublicKey,
 
-    #[serde(rename = "pid")]
-    pairing_key: &'a str,
-    #[serde(rename = "n")]
+    pairing_key: Vec<u8>,
     client_name: String,
-    #[serde(rename = "lu")]
     local_user_name: String,
-    #[serde(rename = "v")]
     version: String,
 }
 
@@ -141,20 +136,13 @@ fn make_pairing_message(exchange: PairingRequest) ->  Vec<u8> {
     let mut ret = Vec::new();
     ret.write_u8(1);
 
-    // ret.write_i32::<BigEndian>(exchange.public_key.as_ref().len() as i32);
     ret.write_all(exchange.public_key.as_ref());
 
-    // ret.write_i32::<BigEndian>(exchange.pairing_key.len() as i32);
     ret.write_all(exchange.pairing_key.as_ref());
 
-    // ret.write_i32::<BigEndian>(exchange.client_name.len() as i32);
     ret.write_all(exchange.client_name.as_ref());
 
-    // ret.write_i32::<BigEndian>(exchange.local_user_name.len() as i32);
-    // ret.write_all(exchange.local_user_name.as_ref());
-
     ret
-
 }
 
 pub async fn pair(small: bool) -> Result<()> {
@@ -163,13 +151,12 @@ pub async fn pair(small: bool) -> Result<()> {
     create_config_folder()?;
     let log = Log::NONE;
 
-    let pairing_id_bytes = randombytes(16);
-    let pairing_id = base64::encode_config(pairing_id_bytes, base64::URL_SAFE);
+    let pairing_id = randombytes(16);
     let hostname = hostname();
     let username = username();
     let exchange = PairingRequest {
         public_key: client_pk,
-        pairing_key: &pairing_id,
+        pairing_key: pairing_id,
         client_name: hostname.into(),
         local_user_name: username.into(),
         version: "0.1.0".to_string(),
