@@ -47,8 +47,11 @@ pub fn render_qr_code(str: &[u8], small: bool) {
             .render()
             .light_color(white.as_str())
             .dark_color(dark.as_str())
+            .quiet_zone(false)
             .build();
-        println!("{}", image);
+        println!();
+        println!("   {}", image.replace("\n", "\n   "));
+        println!();
     }
 }
 
