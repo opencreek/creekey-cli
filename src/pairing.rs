@@ -6,7 +6,7 @@ use crate::output::Log;
 use anyhow::{anyhow, Result};
 use colored::Color;
 
-use qrcode::{EcLevel, QrCode};
+use qrcode::{EcLevel, QrCode, Version};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use sodiumoxide::crypto::kx;
@@ -22,7 +22,16 @@ use std::io::Write;
 use whoami::{hostname, username};
 
 pub fn render_qr_code(str: &str) {
-    let code = QrCode::with_error_correction_level(str, EcLevel::L).unwrap();
+    let mut size = 1;
+    let code = loop {
+        match QrCode::with_version(str, Version::Normal(size), EcLevel::L) {
+            Ok(code) => break code,
+            Err(_) => {
+                size = size + 1;
+            }
+        };
+    };
+    eprintln!("choose size: {}", size);
     let dark = String::from("\x1B[40m  \x1B[0m");
     let white = String::from("\x1B[47m  \x1B[0m");
     let image = code
@@ -121,7 +130,7 @@ pub async fn pair() -> Result<()> {
     create_config_folder()?;
     let log = Log::NONE;
 
-    let pairing_id_bytes = randombytes(32);
+    let pairing_id_bytes = randombytes(8);
     let pairing_id = base64::encode_config(pairing_id_bytes, base64::URL_SAFE);
     let hostname = hostname();
     let username = username();
@@ -133,6 +142,8 @@ pub async fn pair() -> Result<()> {
         version: "0.1.0".to_string(),
     };
 
+    // let pubic_base64 = base64::encode(exchange.public_key);
+    // let string = format!("{}|{}|{}|{}|{}", exchange.version, pubic_base64, exchange.pairing_key, exchange.client_name, exchange.local_user_name);
     let json = serde_json::to_string(&exchange)?;
 
     println!();
