@@ -41,8 +41,8 @@ pub fn render_qr_code(str: &[u8], small: bool) {
             .build();
         println!("{}", image);
     } else {
-        let dark = String::from("\x1B[40m  \x1B[0m");
-        let white = String::from("\x1B[47m  \x1B[0m");
+        let white = String::from("\x1B[40m  \x1B[0m");
+        let dark = String::from("\x1B[47m  \x1B[0m");
         let image = code
             .render()
             .light_color(white.as_str())
