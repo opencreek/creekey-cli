@@ -22,8 +22,9 @@ use std::io::Write;
 use whoami::{hostname, username};
 use qrcode::render::Canvas;
 use qrcode::render::unicode;
+use byteorder::{WriteBytesExt, BigEndian};
 
-pub fn render_qr_code(str: &str, small: bool) {
+pub fn render_qr_code(str: &[u8], small: bool) {
     let mut size = 1;
     let code = loop {
         match QrCode::with_version(str, Version::Normal(size), EcLevel::L) {
@@ -133,13 +134,33 @@ fn decode_pairing_response(
     })
 }
 
+fn make_pairing_message(exchange: PairingRequest) ->  Vec<u8> {
+    let mut ret = Vec::new();
+    ret.write_u8(1);
+
+    // ret.write_i32::<BigEndian>(exchange.public_key.as_ref().len() as i32);
+    ret.write_all(exchange.public_key.as_ref());
+
+    // ret.write_i32::<BigEndian>(exchange.pairing_key.len() as i32);
+    ret.write_all(exchange.pairing_key.as_ref());
+
+    // ret.write_i32::<BigEndian>(exchange.client_name.len() as i32);
+    ret.write_all(exchange.client_name.as_ref());
+
+    // ret.write_i32::<BigEndian>(exchange.local_user_name.len() as i32);
+    // ret.write_all(exchange.local_user_name.as_ref());
+
+    ret
+
+}
+
 pub async fn pair(small: bool) -> Result<()> {
     let (client_pk, client_sk) = kx::gen_keypair();
 
     create_config_folder()?;
     let log = Log::NONE;
 
-    let pairing_id_bytes = randombytes(8);
+    let pairing_id_bytes = randombytes(16);
     let pairing_id = base64::encode_config(pairing_id_bytes, base64::URL_SAFE);
     let hostname = hostname();
     let username = username();
@@ -155,6 +176,8 @@ pub async fn pair(small: bool) -> Result<()> {
     // let string = format!("{}|{}|{}|{}|{}", exchange.version, pubic_base64, exchange.pairing_key, exchange.client_name, exchange.local_user_name);
     let json = serde_json::to_string(&exchange)?;
 
+    let pairing_message = make_pairing_message(exchange);
+
     println!();
     println!();
     log.println(
@@ -162,7 +185,7 @@ pub async fn pair(small: bool) -> Result<()> {
         "Scan this QR code wit the app (https://creekey.io/app)",
         Color::White,
     )?;
-    render_qr_code(json.to_string().as_str(), small);
+    render_qr_code(&pairing_message, small);
     log.waiting_on("Waiting for pairing...")?;
 
     let response: PairingResponse = match poll_for_message::<PairingResponse>(pairing_id).await {
