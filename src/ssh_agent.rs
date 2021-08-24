@@ -6,7 +6,7 @@ use anyhow::Result;
 use daemonize::Daemonize;
 use futures::channel::mpsc::unbounded;
 
-use futures::{StreamExt, SinkExt};
+use futures::{SinkExt, StreamExt};
 
 use serde::{Deserialize, Serialize};
 use sodiumoxide::crypto::secretbox;
@@ -22,8 +22,8 @@ use tokio::task;
 
 use crate::agent::handle::read_and_handle_packet;
 use crate::output::{check_color_tty, Log};
-use tokio::time::{sleep, Duration};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::time::{sleep, Duration};
 
 fn cleanup_socket() {
     let _ = std::fs::remove_file("/tmp/ck-ssh-agent.sock").unwrap_or(());
@@ -114,7 +114,7 @@ pub async fn start_agent(should_daemonize: bool) -> Result<()> {
         cleanup_socket();
         std::process::exit(0);
     })
-        .expect("couldn't set ctrlc handler");
+    .expect("couldn't set ctrlc handler");
 
     cleanup_socket();
 

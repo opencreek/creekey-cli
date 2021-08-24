@@ -101,7 +101,7 @@ pub enum PollError {
 }
 
 pub async fn poll_for_message<V: DeserializeOwned>(relay_id: String) -> Result<V, PollError> {
-    poll_for_message_with_timeout(relay_id, 2 * 10 * 1000).await
+    poll_for_message_with_timeout(relay_id, 30 * 10 * 1000).await
 }
 pub async fn poll_for_message_with_timeout<V: DeserializeOwned>(
     relay_id: String,

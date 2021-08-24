@@ -6,6 +6,8 @@ use crate::output::Log;
 use anyhow::{anyhow, Result};
 use colored::Color;
 
+use qrcode::render::unicode;
+use qrcode::render::Canvas;
 use qrcode::{EcLevel, QrCode, Version};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -20,8 +22,6 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use whoami::{hostname, username};
-use qrcode::render::Canvas;
-use qrcode::render::unicode;
 
 pub fn render_qr_code(str: &str, small: bool) {
     let mut size = 1;
@@ -35,9 +35,7 @@ pub fn render_qr_code(str: &str, small: bool) {
     };
     eprintln!("choose size: {}", size);
     if small {
-        let image = code
-            .render::<unicode::Dense1x2>()
-            .build();
+        let image = code.render::<unicode::Dense1x2>().build();
         println!("{}", image);
     } else {
         let dark = String::from("\x1B[40m  \x1B[0m");
@@ -69,9 +67,9 @@ mod public_key_serializer {
                 Ok(a) => a,
                 Err(a) => return Err(a),
             }
-                .as_slice(),
+            .as_slice(),
         )
-            .ok_or(D::Error::custom("test"))
+        .ok_or(D::Error::custom("test"))
     }
 }
 

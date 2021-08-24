@@ -7,8 +7,8 @@ use futures::channel::mpsc::UnboundedSender;
 use futures::SinkExt;
 use std::io::{Cursor, Read};
 
-use tokio::net::UnixStream;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::net::UnixStream;
 
 #[derive(Debug)]
 pub enum SSHAgentPacket {
@@ -101,7 +101,7 @@ pub async fn read_and_handle_packet(
                     proxies.clone(),
                     remove_proxy_send.clone(),
                 )
-                    .await?;
+                .await?;
             }
             SSHAgentPacket::HostName(name, logger, signature, key) => {
                 new_proxy_send
