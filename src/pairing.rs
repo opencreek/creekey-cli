@@ -20,8 +20,10 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use whoami::{hostname, username};
+use qrcode::render::Canvas;
+use qrcode::render::unicode;
 
-pub fn render_qr_code(str: &str) {
+pub fn render_qr_code(str: &str, small: bool) {
     let mut size = 1;
     let code = loop {
         match QrCode::with_version(str, Version::Normal(size), EcLevel::L) {
@@ -32,14 +34,21 @@ pub fn render_qr_code(str: &str) {
         };
     };
     eprintln!("choose size: {}", size);
-    let dark = String::from("\x1B[40m  \x1B[0m");
-    let white = String::from("\x1B[47m  \x1B[0m");
-    let image = code
-        .render()
-        .light_color(white.as_str())
-        .dark_color(dark.as_str())
-        .build();
-    println!("{}", image);
+    if small {
+        let image = code
+            .render::<unicode::Dense1x2>()
+            .build();
+        println!("{}", image);
+    } else {
+        let dark = String::from("\x1B[40m  \x1B[0m");
+        let white = String::from("\x1B[47m  \x1B[0m");
+        let image = code
+            .render()
+            .light_color(white.as_str())
+            .dark_color(dark.as_str())
+            .build();
+        println!("{}", image);
+    }
 }
 
 mod public_key_serializer {
@@ -60,9 +69,9 @@ mod public_key_serializer {
                 Ok(a) => a,
                 Err(a) => return Err(a),
             }
-            .as_slice(),
+                .as_slice(),
         )
-        .ok_or(D::Error::custom("test"))
+            .ok_or(D::Error::custom("test"))
     }
 }
 
@@ -124,7 +133,7 @@ fn decode_pairing_response(
     })
 }
 
-pub async fn pair() -> Result<()> {
+pub async fn pair(small: bool) -> Result<()> {
     let (client_pk, client_sk) = kx::gen_keypair();
 
     create_config_folder()?;
@@ -153,7 +162,7 @@ pub async fn pair() -> Result<()> {
         "Scan this QR code wit the app (https://creekey.io/app)",
         Color::White,
     )?;
-    render_qr_code(json.to_string().as_str());
+    render_qr_code(json.to_string().as_str(), small);
     log.waiting_on("Waiting for pairing...")?;
 
     let response: PairingResponse = match poll_for_message::<PairingResponse>(pairing_id).await {

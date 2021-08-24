@@ -39,6 +39,7 @@ async fn main() -> Result<()> {
         )
         (@subcommand pair =>
             (about: "Pair with a phone")
+            (@arg small: -s --small "Prints a smaller more condensed version")
         )
         (@subcommand testgpg =>
             (about: "test command ")
@@ -80,7 +81,7 @@ async fn main() -> Result<()> {
     }));
 
     let ret = match matches.subcommand() {
-        ("pair", _) => pair().await,
+        ("pair", Some(matches)) => pair(matches.is_present("small")).await,
         ("unpair", _) => unpair().await,
         // ("testgpg", _) => sign_git_commit().await,
         ("test", _) => test_sign().await,
