@@ -34,7 +34,6 @@ pub fn render_qr_code(str: &[u8], small: bool) {
             }
         };
     };
-    eprintln!("choose size: {}", size);
     if small {
         let image = code.render::<unicode::Dense1x2>().build();
         println!("{}", image);
@@ -175,6 +174,10 @@ pub async fn pair(small: bool) -> Result<()> {
         Color::White,
     )?;
     render_qr_code(&pairing_message, small);
+    if !small {
+        log.info("If this QR code is to big for your screen try \"--small\".")?;
+        log.info("If that doesn't help, try making your font smaller.")?;
+    }
     log.waiting_on("Waiting for pairing...")?;
 
     let response: PairingResponse = match poll_for_message::<PairingResponse>(pairing_id).await {
