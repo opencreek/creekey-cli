@@ -22,8 +22,9 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use whoami::{hostname, username};
+use byteorder::{WriteBytesExt, BigEndian};
 
-pub fn render_qr_code(str: &str, small: bool) {
+pub fn render_qr_code(str: &[u8], small: bool) {
     let mut size = 1;
     let code = loop {
         match QrCode::with_version(str, Version::Normal(size), EcLevel::L) {
@@ -38,14 +39,17 @@ pub fn render_qr_code(str: &str, small: bool) {
         let image = code.render::<unicode::Dense1x2>().build();
         println!("{}", image);
     } else {
-        let dark = String::from("\x1B[40m  \x1B[0m");
-        let white = String::from("\x1B[47m  \x1B[0m");
+        let white = String::from("\x1B[40m  \x1B[0m");
+        let dark = String::from("\x1B[47m  \x1B[0m");
         let image = code
             .render()
             .light_color(white.as_str())
             .dark_color(dark.as_str())
+            .quiet_zone(false)
             .build();
-        println!("{}", image);
+        println!();
+        println!("   {}", image.replace("\n", "\n   "));
+        println!();
     }
 }
 
@@ -74,17 +78,12 @@ mod public_key_serializer {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct PairingRequest<'a> {
-    #[serde(with = "public_key_serializer", rename = "pk")]
+struct PairingRequest {
     public_key: PublicKey,
 
-    #[serde(rename = "pid")]
-    pairing_key: &'a str,
-    #[serde(rename = "n")]
+    pairing_key: Vec<u8>,
     client_name: String,
-    #[serde(rename = "lu")]
     local_user_name: String,
-    #[serde(rename = "v")]
     version: String,
 }
 
@@ -131,19 +130,32 @@ fn decode_pairing_response(
     })
 }
 
+fn make_pairing_message(exchange: PairingRequest) ->  Vec<u8> {
+    let mut ret = Vec::new();
+    ret.write_u8(1);
+
+    ret.write_all(exchange.public_key.as_ref());
+
+    ret.write_all(exchange.pairing_key.as_ref());
+
+    ret.write_all(exchange.client_name.as_ref());
+
+    ret
+}
+
 pub async fn pair(small: bool) -> Result<()> {
     let (client_pk, client_sk) = kx::gen_keypair();
 
     create_config_folder()?;
     let log = Log::NONE;
 
-    let pairing_id_bytes = randombytes(8);
-    let pairing_id = base64::encode_config(pairing_id_bytes, base64::URL_SAFE);
+    let pairing_id_bytes = randombytes(16);
+    let pairing_id = base64::encode_config(&pairing_id_bytes, base64::URL_SAFE);
     let hostname = hostname();
     let username = username();
     let exchange = PairingRequest {
         public_key: client_pk,
-        pairing_key: &pairing_id,
+        pairing_key: pairing_id_bytes,
         client_name: hostname.into(),
         local_user_name: username.into(),
         version: "0.1.0".to_string(),
@@ -153,6 +165,8 @@ pub async fn pair(small: bool) -> Result<()> {
     // let string = format!("{}|{}|{}|{}|{}", exchange.version, pubic_base64, exchange.pairing_key, exchange.client_name, exchange.local_user_name);
     let json = serde_json::to_string(&exchange)?;
 
+    let pairing_message = make_pairing_message(exchange);
+
     println!();
     println!();
     log.println(
@@ -160,7 +174,7 @@ pub async fn pair(small: bool) -> Result<()> {
         "Scan this QR code wit the app (https://creekey.io/app)",
         Color::White,
     )?;
-    render_qr_code(json.to_string().as_str(), small);
+    render_qr_code(&pairing_message, small);
     log.waiting_on("Waiting for pairing...")?;
 
     let response: PairingResponse = match poll_for_message::<PairingResponse>(pairing_id).await {
