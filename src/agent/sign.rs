@@ -22,7 +22,7 @@ use ring_compat::generic_array::GenericArray;
 use ring_compat::signature::ecdsa::p256::NistP256;
 use ring_compat::signature::ecdsa::p384::NistP384;
 use ring_compat::signature::Verifier;
-use std::convert::TryInto;
+
 use thrussh_keys::key::{parse_public_key, OpenSSLPKey, PublicKey, SignatureHash};
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
@@ -112,7 +112,7 @@ fn parse_rsa_sig(data: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>)> {
     let mut cursor = Cursor::new(data);
 
     let name_length = cursor.read_i32::<BigEndian>()?;
-    let mut name = vec![0u8; name_length as usize];
+    let name = vec![0u8; name_length as usize];
 
     let sig_length = cursor.read_i32::<BigEndian>()?;
     let mut sig = vec![0u8; sig_length as usize];

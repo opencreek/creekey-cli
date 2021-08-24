@@ -23,7 +23,7 @@ use tokio::task;
 use crate::agent::handle::read_and_handle_packet;
 use crate::output::{check_color_tty, Log};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::time::{sleep, Duration};
+use tokio::time::Duration;
 
 fn cleanup_socket() {
     let _ = std::fs::remove_file("/tmp/ck-ssh-agent.sock").unwrap_or(());
@@ -166,9 +166,9 @@ pub async fn start_agent(should_daemonize: bool) -> Result<()> {
                     ()
                 });
             }
-            x = interval.tick() => {
+            _x = interval.tick() => {
                 let mutex = proxies.clone();
-                let mut vec = mutex.lock().unwrap();
+                let vec = mutex.lock().unwrap();
                 let mut remove_proxy_send = remove_proxy_send.clone();
                 let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
 

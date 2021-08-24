@@ -6,7 +6,7 @@ use os_pipe::{dup_stderr, dup_stdin, dup_stdout};
 use ssh_parser::SshPacket;
 use std::convert::TryInto;
 
-use std::io::{Cursor, Read, Write};
+use std::io::{Read, Write};
 use std::net::{Shutdown, TcpStream};
 
 use std::os::unix::net::{UnixListener, UnixStream};
