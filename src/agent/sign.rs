@@ -27,6 +27,7 @@ use thrussh_keys::key::{parse_public_key, OpenSSLPKey, PublicKey, SignatureHash}
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::time::{sleep, Duration};
+use crate::sign_on_phone::{sign_on_phone, SignError};
 
 fn parse_user_name(data: Vec<u8>) -> Result<String> {
     let mut cursor = Cursor::new(data);
@@ -298,33 +299,19 @@ pub async fn sign_request(
 
     log.waiting_on("Waiting for phone authorization ...")?;
 
-    match send_to_phone(key.clone(), payload, phone_id).await {
-        Ok(_) => {}
+    let phone_response: MessageRelayResponse = match sign_on_phone(payload, phone_id,relay_id, key.clone()).await {
+        Ok(res) => res,
         Err(e) => {
-            log.error(format!("Got Error while sending request: {}", e).as_str())?;
-            sleep(Duration::from_millis(10)).await;
-            respond_with_failure(socket).await?;
-            return Ok(());
-        }
-    }
-
-    let typ = 14u8;
-
-    let polling_response: Result<MessageRelayResponse, PollError> =
-        poll_for_message(relay_id).await;
-
-    let phone_response = match polling_response {
-        Ok(t) => t,
-        Err(e) => {
-            match e {
-                PollError::Timeout => {
-                    // there is an X emoji at the start of the string
-                    log.fail("Timed out")?;
+                match e {
+                    SignError::PollError(PollError::Timeout) => {
+                        log.fail("Timed out")?;
+                    }
+                    _ => {
+                        log.fail(format!("Encountered Error while waiting for signature: {}", e).as_str())?;
+                    }
                 }
-                _ => {}
-            }
             sleep(Duration::from_millis(10)).await;
-            respond_with_failure(socket).await?;
+            respond_with_failure(socket).await ?;
             return Ok(());
         }
     };
@@ -344,6 +331,7 @@ pub async fn sign_request(
     let signature_bytes = base64::decode(data.signature.unwrap())?;
     println!("responding to socket with authorization");
 
+    let typ = 14u8;
     let mut msg_payload = vec![];
     std::io::Write::write(&mut msg_payload, &[typ])?;
     byteorder::WriteBytesExt::write_u32::<BigEndian>(
