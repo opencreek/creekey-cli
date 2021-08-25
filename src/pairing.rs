@@ -10,7 +10,7 @@ use qrcode::render::unicode;
 use qrcode::render::Canvas;
 use qrcode::{EcLevel, QrCode, Version};
 use serde::{Deserialize, Serialize};
-use serde_json;
+
 use sodiumoxide::crypto::kx;
 use sodiumoxide::crypto::kx::PublicKey;
 use sodiumoxide::crypto::kx::SecretKey;

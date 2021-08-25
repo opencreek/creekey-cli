@@ -1,5 +1,5 @@
 use crate::communication::{
-    decrypt, poll_for_message, send_to_phone, MessageRelayResponse, PollError,
+    decrypt, MessageRelayResponse, PollError,
 };
 use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse, SshProxy};
 
