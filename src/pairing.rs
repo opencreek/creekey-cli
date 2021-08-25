@@ -22,7 +22,7 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use whoami::{hostname, username};
-use byteorder::{WriteBytesExt, BigEndian};
+use byteorder::{WriteBytesExt};
 
 pub fn render_qr_code(str: &[u8], small: bool) {
     let mut size = 1;
@@ -159,10 +159,6 @@ pub async fn pair(small: bool) -> Result<()> {
         local_user_name: username.into(),
         version: "0.1.0".to_string(),
     };
-
-    // let pubic_base64 = base64::encode(exchange.public_key);
-    // let string = format!("{}|{}|{}|{}|{}", exchange.version, pubic_base64, exchange.pairing_key, exchange.client_name, exchange.local_user_name);
-    let json = serde_json::to_string(&exchange)?;
 
     let pairing_message = make_pairing_message(exchange);
 
