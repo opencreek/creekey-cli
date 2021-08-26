@@ -36,6 +36,8 @@ thrussh-keys={verssion="0.21.0", features=["openssl"]}
 ecdsa= { version="0.12.4"}
 ring-compat={ version="0.3.1", features=["signature"]}
 openssl="0.10.36"
+keyring="0.10.1"
+pgp="0.7.1"
 
 [[bin]]
 name = "creekey-git-sign"

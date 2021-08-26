@@ -17,6 +17,9 @@ use sodiumoxide::randombytes::randombytes;
 use std::env;
 use std::fs;
 use std::io::{stdin, stdout, Read, Write};
+use pgp::armor::BlockType;
+use std::collections::BTreeMap;
+use pgp::types::Tag::LiteralData;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct GgpRequest {
@@ -31,6 +34,22 @@ struct GgpRequest {
 struct GgpResponse {
     message: Option<String>,
     accepted: bool,
+}
+struct ArmourSource {
+    content: Vec<u8>,
+}
+
+impl pgp::ser::Serialize for ArmourSource {
+    fn to_writer<W: std::io::Write>(&self, w: &mut W) -> Result<(), pgp::errors::Error> {
+        w.write_all(&self.content)?;
+        Ok(())
+    }
+}
+
+impl ArmourSource {
+    pub fn new(content: Vec<u8>) -> Self {
+        ArmourSource { content }
+    }
 }
 
 pub async fn sign_git_commit() -> Result<()> {
@@ -80,7 +99,14 @@ pub async fn sign_git_commit() -> Result<()> {
 
     if let Some(data_base64) = response.message {
         let out = base64::decode(data_base64)?;
-        stdout().write(out.as_slice())?;
+        let mut header : BTreeMap<String, String>= BTreeMap::new();
+        header.insert("Comment".to_string(), "Signed with creekey.io".to_string());
+
+        let mut res = Vec::with_capacity(out.len() * 2);
+        let mut source = ArmourSource::new(out);
+        pgp::armor::write(&source, BlockType::Signature,&mut res,  Some(&header))?;
+
+        stdout().write_all( &res)?;
     }
 
     Ok(())

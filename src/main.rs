@@ -12,6 +12,7 @@ mod ssh_agent;
 mod ssh_proxy;
 mod test_sign;
 mod unpair;
+mod serects;
 
 use crate::me::print_ssh_key;
 use crate::output::Log;

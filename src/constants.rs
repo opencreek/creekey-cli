@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 
-static CONFIG_FOLDER: &'static str = ".config/creekey";
+static CONFIG_FOLDER: &'static str = ".creekey";
 static SECRET_KEY_PATH: &'static str = "key";
 static PHONE_ID_PATH: &'static str = "phone_id";
 static SSH_KEY_PATH: &'static str = ".ssh/id_creekey.pub";
