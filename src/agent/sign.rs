@@ -168,32 +168,22 @@ pub fn verify_ecdsa_signature_detached(proxy: &SshProxy, session_hash: &[u8]) ->
 }
 
 pub fn check_signature(it: &SshProxy, session_hash: &[u8]) -> Result<bool> {
-    eprintln!("key: {:?}", it.key);
-    eprintln!("signature: {:?}", it.signature);
-    eprintln!("session: {:?}", session_hash);
     let mut cursor = Cursor::new(it.signature.clone());
 
     let sig_name = parse_first_string(&mut cursor).unwrap();
     let sig_data = parse_first_string(&mut cursor).unwrap();
 
-    eprintln!("signature name: {}", String::from_utf8(sig_name.clone())?);
-
     let (algo, _key_data) = parse_key_data(it.key.clone()).unwrap();
 
-    eprintln!("algo: {}", algo);
     if algo == "ssh-ed25519" {
         let pk = parse_public_key(&it.key)?;
-        eprintln!("Could parse pk!");
         let ret = pk.verify_detached(session_hash, &sig_data);
-        eprintln!("verification: {}", ret);
-
         return Ok(ret);
     } else if algo.starts_with("ssh-rsa") {
         let pk = PublicKey::parse(&sig_name, &it.key)?;
 
         let ret = pk.verify_detached(session_hash, &sig_data);
 
-        eprintln!("verification: {}", ret);
         return Ok(ret);
     } else if algo.starts_with("ecdsa") {
         return Ok(verify_ecdsa_signature_detached(it, session_hash));
@@ -202,7 +192,6 @@ pub fn check_signature(it: &SshProxy, session_hash: &[u8]) -> Result<bool> {
 }
 
 pub fn find_proxy(proxies: Vec<SshProxy>, session_hash: &[u8]) -> Option<SshProxy> {
-    eprintln!("------- finding proxy!");
     let ret = proxies
         .iter()
         .find(|it| match check_signature(it, session_hash) {
@@ -319,7 +308,6 @@ pub async fn sign_request(
             }
         };
 
-    println!("Decrypting message...");
 
     if !phone_response.accepted {
         log.fail("Request was denied")?;
