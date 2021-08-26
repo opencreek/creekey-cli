@@ -32,7 +32,7 @@ struct GgpRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct GgpResponse {
-    message: Option<String>,
+    signature: Option<String>,
     accepted: bool,
 }
 struct ArmourSource {
@@ -96,11 +96,13 @@ pub async fn sign_git_commit() -> Result<()> {
         return Ok(());
     }
     log.success("Accepted")?;
+    log.success(&format!("{:X?}", response))?;
 
-    if let Some(data_base64) = response.message {
+    if let Some(data_base64) = response.signature {
         let out = base64::decode(data_base64)?;
         let mut header : BTreeMap<String, String>= BTreeMap::new();
         header.insert("Comment".to_string(), "Signed with creekey.io".to_string());
+        log.success(&format!("data: {:X?}", out))?;
 
         let mut res = Vec::with_capacity(out.len() * 2);
         let mut source = ArmourSource::new(out);
