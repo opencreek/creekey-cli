@@ -201,7 +201,6 @@ pub async fn pair(small: bool) -> Result<()> {
     store_secret_key(client_data.rx).unwrap();
     store_phone_id(client_data.phone_id).unwrap();
     write_public_ssh_to_disc(client_data.public_key_ssh)?;
-    write_public_gpg_to_disc(client_data.public_key_gpg)?;
 
     let mut gpg = Command::new("gpg")
         .arg("--import")
@@ -211,7 +210,9 @@ pub async fn pair(small: bool) -> Result<()> {
         .spawn().unwrap();
 
     let mut stdin = gpg.stdin.take();
+
     if let Some(mut stdin) = stdin {
+        eprintln!("{}",client_data.public_key_gpg);
         stdin.write_all(client_data.public_key_gpg.as_bytes());
     }
 

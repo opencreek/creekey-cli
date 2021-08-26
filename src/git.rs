@@ -189,7 +189,6 @@ async fn main() -> Result<()> {
         );
     let matches = app.get_matches_safe();
 
-    log.info(&format!("{:X?}", matches));
     match matches {
         Ok(matches) => {
             if matches.is_present("sign") || matches.is_present("detach-sign") {
