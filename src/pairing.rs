@@ -21,6 +21,7 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use whoami::{hostname, username};
+use std::process::{Command, Stdio};
 
 pub fn render_qr_code(str: &[u8], small: bool) {
     let mut size = 1;
@@ -98,11 +99,15 @@ struct PairingData {
     phone_id: String,
     #[serde(rename = "publicKeySSH")]
     public_key_ssh: String,
+
+    #[serde(rename = "publicKeyGPG")]
+    public_key_gpg: String,
 }
 
 struct ClientPairingData {
     phone_id: String,
     public_key_ssh: String,
+    public_key_gpg: String,
     rx: Vec<u8>,
 }
 
@@ -122,6 +127,7 @@ fn decode_pairing_response(
     Ok(ClientPairingData {
         phone_id: data.phone_id,
         public_key_ssh: data.public_key_ssh,
+        public_key_gpg: data.public_key_gpg,
         rx: rx.0.try_into()?,
     })
 }
@@ -192,10 +198,25 @@ pub async fn pair(small: bool) -> Result<()> {
     let client_data = decode_pairing_response(client_pk, client_sk, response)?;
     log.println("💾", "Saving Pairing data...", Color::Green)?;
 
-    eprintln!("key:{:X?}", client_data.rx);
     store_secret_key(client_data.rx).unwrap();
     store_phone_id(client_data.phone_id).unwrap();
     write_public_ssh_to_disc(client_data.public_key_ssh)?;
+    write_public_gpg_to_disc(client_data.public_key_gpg)?;
+
+    let mut gpg = Command::new("gpg")
+        .arg("--import")
+        .stdin(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .spawn().unwrap();
+
+    let mut stdin = gpg.stdin.take();
+    if let Some(mut stdin) = stdin {
+        stdin.write_all(client_data.public_key_gpg.as_bytes());
+    }
+
+    gpg.wait().unwrap();
+
     log.println("✔️", "Done!", Color::Green)?;
 
     log.user_todo("Run 'creekey setup-ssh' to auto set up your ssh configuration")?;
