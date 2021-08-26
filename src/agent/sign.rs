@@ -1,4 +1,4 @@
-use crate::communication::{PollError};
+use crate::communication::PollError;
 use crate::ssh_agent::{PhoneSignResponse, SshProxy};
 
 use anyhow::Result;
@@ -23,7 +23,7 @@ use ring_compat::signature::Verifier;
 
 use crate::keychain::{get_phone_id, get_secret_key};
 use crate::sign_on_phone::{sign_on_phone, SignError};
-use thrussh_keys::key::{parse_public_key,  PublicKey};
+use thrussh_keys::key::{parse_public_key, PublicKey};
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::time::{sleep, Duration};
@@ -307,7 +307,6 @@ pub async fn sign_request(
                 return Ok(());
             }
         };
-
 
     if !phone_response.accepted {
         log.fail("Request was denied")?;

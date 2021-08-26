@@ -1,4 +1,4 @@
-use crate::constants::{get_ssh_key_path};
+use crate::constants::get_ssh_key_path;
 
 use anyhow::Context;
 use anyhow::Result;
