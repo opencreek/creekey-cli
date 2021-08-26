@@ -1,4 +1,3 @@
-use crate::keychain::KeyChainError::ProviderMissing;
 use keyring::{Keyring, KeyringError};
 use thiserror::Error;
 
@@ -42,7 +41,7 @@ fn set(id: &str, value: String) -> Result<(), KeyChainError> {
     let keyring = Keyring::new(&SERVICE, id);
 
     match keyring.set_password(&value) {
-        Ok(k) => Ok(()),
+        Ok(_) => Ok(()),
         Err(e) => match e {
             KeyringError::NoBackendFound => Err(KeyChainError::ProviderMissing),
             KeyringError::NoPasswordFound => Err(KeyChainError::Missing),
@@ -55,7 +54,7 @@ fn delete(id: &str) -> Result<(), KeyChainError> {
     let keyring = Keyring::new(&SERVICE, id);
 
     match keyring.delete_password() {
-        Ok(k) => Ok(()),
+        Ok(_) => Ok(()),
         Err(e) => match e {
             KeyringError::NoBackendFound => Err(KeyChainError::ProviderMissing),
             KeyringError::NoPasswordFound => Err(KeyChainError::Missing),

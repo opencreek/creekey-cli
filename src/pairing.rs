@@ -1,6 +1,6 @@
 use crate::communication::{decrypt, poll_for_message, PollError};
 use crate::constants::{
-    get_config_folder, get_phone_id_path, get_secret_key_path, get_ssh_key_path,
+    get_config_folder, get_ssh_key_path,
 };
 use crate::keychain::{store_phone_id, store_secret_key};
 use crate::output::Log;
@@ -8,7 +8,6 @@ use anyhow::{anyhow, Result};
 use colored::Color;
 
 use qrcode::render::unicode;
-use qrcode::render::Canvas;
 use qrcode::{EcLevel, QrCode, Version};
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +34,7 @@ pub fn render_qr_code(str: &[u8], small: bool) {
             }
         };
     };
+    eprintln!("qr code version: {}", size);
     if small {
         let image = code.render::<unicode::Dense1x2>().build();
         println!("{}", image);
@@ -128,17 +128,17 @@ fn decode_pairing_response(
     })
 }
 
-fn make_pairing_message(exchange: PairingRequest) -> Vec<u8> {
+fn make_pairing_message(exchange: PairingRequest) -> Result<Vec<u8>> {
     let mut ret = Vec::new();
-    ret.write_u8(1);
+    ret.write_u8(1)?;
 
-    ret.write_all(exchange.public_key.as_ref());
+    ret.write_all(exchange.public_key.as_ref())?;
 
-    ret.write_all(exchange.pairing_key.as_ref());
+    ret.write_all(exchange.pairing_key.as_ref())?;
 
-    ret.write_all(exchange.client_name.as_ref());
+    ret.write_all(exchange.client_name.as_ref())?;
 
-    ret
+    Ok(ret)
 }
 
 pub async fn pair(small: bool) -> Result<()> {
@@ -159,7 +159,7 @@ pub async fn pair(small: bool) -> Result<()> {
         version: "0.1.0".to_string(),
     };
 
-    let pairing_message = make_pairing_message(exchange);
+    let pairing_message = make_pairing_message(exchange)?;
 
     println!();
     println!();
@@ -205,18 +205,6 @@ pub async fn pair(small: bool) -> Result<()> {
     return Ok(());
 }
 
-fn write_phone_id_to_disk(phone_id: String) -> Result<()> {
-    let path = get_phone_id_path()?;
-
-    if path.exists() {
-        fs::remove_file(path.clone())?;
-    }
-
-    let mut file = File::create(path)?;
-    file.write_all(phone_id.as_bytes())?;
-    Ok(())
-}
-
 fn write_public_ssh_to_disc(mut key: String) -> Result<()> {
     let path = get_ssh_key_path()?;
 
@@ -241,18 +229,3 @@ fn create_config_folder() -> Result<()> {
     Ok(())
 }
 
-fn write_key_to_disc(mut key: String) -> Result<()> {
-    let path = get_secret_key_path()?;
-
-    if path.exists() {
-        fs::remove_file(path.clone())?;
-    }
-
-    let mut file = File::create(path).unwrap();
-    file.write_all(key.as_bytes())?;
-
-    unsafe {
-        memzero(key.as_bytes_mut());
-    }
-    Ok(())
-}

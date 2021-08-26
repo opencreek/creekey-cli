@@ -7,8 +7,6 @@ use anyhow::Result;
 
 use sodiumoxide::randombytes::randombytes;
 use std::collections::HashMap;
-use std::thread::sleep;
-use tokio::time::Duration;
 
 pub async fn test_sign() -> Result<()> {
     let mut log = Log::NONE;

@@ -1,4 +1,4 @@
-use crate::constants::{get_phone_id_path, get_secret_key_path, get_ssh_key_path};
+use crate::constants::{get_ssh_key_path};
 
 use anyhow::Context;
 use anyhow::Result;
@@ -9,7 +9,6 @@ use futures::channel::mpsc::unbounded;
 use futures::{SinkExt, StreamExt};
 
 use serde::{Deserialize, Serialize};
-use sodiumoxide::crypto::secretbox;
 
 use std;
 
@@ -154,7 +153,7 @@ pub async fn start_agent(should_daemonize: bool) -> Result<()> {
 
                 for proxy in vec.iter() {
                     if now - proxy.saved_at > 5 * 60 {
-                        remove_proxy_send.send(proxy.clone()).await;
+                        remove_proxy_send.send(proxy.clone()).await?;
                     }
                 }
 

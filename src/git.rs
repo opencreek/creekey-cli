@@ -57,9 +57,8 @@ pub async fn sign_git_commit() -> Result<()> {
     let path = env::var("GPG_TTY")?;
     check_color_tty();
 
-    // let file = fs::OpenOptions::new().write(true).open(path)?;
-    // let log = Log::from_file(&file);
-    let log = Log::NONE;
+    let file = fs::OpenOptions::new().write(true).open(path)?;
+    let log = Log::from_file(&file);
     let mut buffer = String::new();
 
     stdin().read_to_string(&mut buffer)?;
@@ -107,10 +106,12 @@ pub async fn sign_git_commit() -> Result<()> {
         log.success(&format!("data: {:X?}", out))?;
 
         let mut res = Vec::with_capacity(out.len() * 2);
-        let mut source = ArmourSource::new(out);
+        let source = ArmourSource::new(out);
         pgp::armor::write(&source, BlockType::Signature, &mut res, Some(&header))?;
 
-        stdout().write_all(&res)?;
+        let str = String::from_utf8(res.clone()).unwrap();
+        print!("{}", str);
+        log.info(&format!("\n{}", str));
     }
 
     Ok(())

@@ -1,6 +1,5 @@
 use crate::communication::send_to_phone;
 
-use crate::constants::{get_phone_id_path, get_secret_key_path};
 use crate::output::Log;
 
 use crate::keychain::{delete_phone_id, delete_secret_key, get_phone_id, get_secret_key};
@@ -8,7 +7,6 @@ use anyhow::Result;
 
 use sodiumoxide::randombytes::randombytes;
 use std::collections::HashMap;
-use std::fs;
 
 pub async fn unpair() -> Result<()> {
     let log = Log::NONE;
