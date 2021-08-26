@@ -210,7 +210,7 @@ pub async fn pair(small: bool) -> Result<()> {
         .spawn()
         .unwrap();
 
-    let mut stdin = gpg.stdin.take();
+    let stdin = gpg.stdin.take();
 
     if let Some(mut stdin) = stdin {
         stdin.write_all(client_data.public_key_gpg.as_bytes());

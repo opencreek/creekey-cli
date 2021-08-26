@@ -22,7 +22,7 @@ use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::fs::File;
-use std::io::{stderr, stdin, stdout, Read, Write};
+use std::io::{stdin, stdout, Read, Write};
 use std::process::{Command, Stdio};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -118,7 +118,7 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
     if let Some(data_base64) = response.signature {
         let out = base64::decode(data_base64)?;
 
-        if (armour_output) {
+        if armour_output {
             let mut header: BTreeMap<String, String> = BTreeMap::new();
             header.insert("Comment".to_string(), "Signed with creekey.io".to_string());
 
@@ -155,12 +155,12 @@ fn forward_to_pgp() -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let path = env::var("GPG_TTY")?;
+    let _path = env::var("GPG_TTY")?;
     check_color_tty();
 
     let file = File::create("/home/reckter/gpg-out.log")?;
-    let log = Log::from_file(&file);
-    let mut app = App::new("creekey git sign")
+    let _log = Log::from_file(&file);
+    let app = App::new("creekey git sign")
         .version("0.1.0")
         .author("Opencreek Technogoly UG - opencreek.tech")
         .about("Git signing with creekey.io")
