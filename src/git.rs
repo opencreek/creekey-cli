@@ -117,7 +117,6 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
 
             let str = String::from_utf8(res.clone()).unwrap();
             print!("{}", str);
-            log.info(&format!("\n{}", str));
             eprintln!("\n[GNUPG:] SIG_CREATED ")
         } else {
             // raw output to stdout i guess
