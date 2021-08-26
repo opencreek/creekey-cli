@@ -41,7 +41,7 @@ pub fn setup_git(force: bool) -> Result<()> {
             .args(&[
                 "config",
                 "--global",
-                "gpg.programm",
+                "gpg.program",
                 "/usr/bin/creekey-gpg-sign",
             ])
             .output()?;
