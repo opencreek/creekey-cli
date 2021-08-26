@@ -41,26 +41,6 @@ pub enum ReadError {
     KeyParseError,
 }
 
-pub fn read_sync_key() -> Result<secretbox::Key, ReadError> {
-    let path = get_secret_key_path().map_err(|_| ReadError::CouldNotGetPath)?;
-
-    let key_str = fs::read_to_string(path).map_err(|_| ReadError::FileIsMissing)?;
-
-    let decoded = base64::decode(key_str).map_err(|_| ReadError::KeyParseError)?;
-    Ok(secretbox::Key::from_slice(&decoded)
-        .context("")
-        .map_err(|_| ReadError::KeyParseError)?)
-}
-
-pub fn read_sync_phone_id() -> Result<String, ReadError> {
-    let path = get_phone_id_path().map_err(|_| ReadError::CouldNotGetPath)?;
-
-    let key_str = fs::read_to_string(path).map_err(|_| ReadError::FileIsMissing)?;
-    let trimmed = key_str.trim().to_string();
-
-    Ok(trimmed)
-}
-
 pub fn read_ssh_key() -> Result<String, ReadError> {
     let path = get_ssh_key_path().map_err(|_| ReadError::CouldNotGetPath)?;
 

@@ -1,8 +1,10 @@
+use crate::keychain::KeyChainError::ProviderMissing;
 use keyring::{Keyring, KeyringError};
 use thiserror::Error;
-use crate::serects::keychain::KeyChainError::ProviderMissing;
 
-
+use anyhow::Context;
+use sodiumoxide::crypto::secretbox;
+use sodiumoxide::crypto::secretbox::Key;
 
 #[derive(Error, Debug)]
 pub enum KeyChainError {
@@ -10,18 +12,20 @@ pub enum KeyChainError {
     Missing,
 
     #[error("OS Keychain error: {0}")]
-    OsError(#[from] KeyringError),
+    OsError(String),
 
     #[error("No Key chain provider found")]
     ProviderMissing,
+
+    #[error("Parse Error")]
+    ParseError,
 }
 const SERVICE: &str = "creekey";
 
 const SECRET_KEY: &str = "secret-key";
 const PHONE_ID: &str = "phone-id";
 
-
-fn get(id: &str)-> Result<String, KeyChainError> {
+fn get(id: &str) -> Result<String, KeyChainError> {
     let keyring = Keyring::new(&SERVICE, id);
 
     match keyring.get_password() {
@@ -29,12 +33,12 @@ fn get(id: &str)-> Result<String, KeyChainError> {
         Err(e) => match e {
             KeyringError::NoBackendFound => Err(KeyChainError::ProviderMissing),
             KeyringError::NoPasswordFound => Err(KeyChainError::Missing),
-            e => Err(KeyChainError::OsError(e))
-        }
+            e => Err(KeyChainError::OsError(e.to_string())),
+        },
     }
 }
 
-fn set(id: &str, value: String)-> Result<(), KeyChainError> {
+fn set(id: &str, value: String) -> Result<(), KeyChainError> {
     let keyring = Keyring::new(&SERVICE, id);
 
     match keyring.set_password(&value) {
@@ -42,12 +46,12 @@ fn set(id: &str, value: String)-> Result<(), KeyChainError> {
         Err(e) => match e {
             KeyringError::NoBackendFound => Err(KeyChainError::ProviderMissing),
             KeyringError::NoPasswordFound => Err(KeyChainError::Missing),
-            e => Err(KeyChainError::OsError(e))
-        }
+            e => Err(KeyChainError::OsError(e.to_string())),
+        },
     }
 }
 
-fn delete(id: &str)-> Result<(), KeyChainError> {
+fn delete(id: &str) -> Result<(), KeyChainError> {
     let keyring = Keyring::new(&SERVICE, id);
 
     match keyring.delete_password() {
@@ -55,17 +59,23 @@ fn delete(id: &str)-> Result<(), KeyChainError> {
         Err(e) => match e {
             KeyringError::NoBackendFound => Err(KeyChainError::ProviderMissing),
             KeyringError::NoPasswordFound => Err(KeyChainError::Missing),
-            e => Err(KeyChainError::OsError(e))
-        }
+            e => Err(KeyChainError::OsError(e.to_string())),
+        },
     }
 }
 
-pub fn get_secret_key() -> Result<String, KeyChainError> {
-    get(SECRET_KEY)
+pub fn get_secret_key() -> Result<Key, KeyChainError> {
+    let value = get(SECRET_KEY)?;
+    eprintln!("{:X?}", value);
+    let decoded = base64::decode(value).map_err(|_| KeyChainError::ParseError)?;
+    Ok(secretbox::Key::from_slice(&decoded)
+        .context("")
+        .map_err(|_| KeyChainError::ParseError)?)
 }
 
-pub fn store_secret_key(key: String) -> Result<(), KeyChainError> {
-    set(SECRET_KEY, key)
+pub fn store_secret_key(key: Vec<u8>) -> Result<(), KeyChainError> {
+    let encoded = base64::encode(key);
+    set(SECRET_KEY, encoded)
 }
 
 pub fn delete_secret_key() -> Result<(), KeyChainError> {

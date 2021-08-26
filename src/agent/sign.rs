@@ -1,7 +1,5 @@
-use crate::communication::{
-    decrypt, MessageRelayResponse, PollError,
-};
-use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse, SshProxy};
+use crate::communication::{decrypt, MessageRelayResponse, PollError};
+use crate::ssh_agent::{PhoneSignResponse, SshProxy};
 
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
@@ -23,11 +21,12 @@ use ring_compat::signature::ecdsa::p256::NistP256;
 use ring_compat::signature::ecdsa::p384::NistP384;
 use ring_compat::signature::Verifier;
 
+use crate::keychain::{get_phone_id, get_secret_key};
+use crate::sign_on_phone::{sign_on_phone, SignError};
 use thrussh_keys::key::{parse_public_key, OpenSSLPKey, PublicKey, SignatureHash};
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::time::{sleep, Duration};
-use crate::sign_on_phone::{sign_on_phone, SignError};
 
 fn parse_user_name(data: Vec<u8>) -> Result<String> {
     let mut cursor = Cursor::new(data);
@@ -277,20 +276,20 @@ pub async fn sign_request(
     }
     payload.insert("relayId", relay_id.clone());
 
-    let key = match read_sync_key() {
+    let key = match get_secret_key() {
         Ok(k) => k,
         Err(e) => {
-            log.handle_read_error("secret key", e)?;
+            log.handle_keychain_error("secret key", e)?;
             sleep(Duration::from_millis(10)).await;
             respond_with_failure(socket).await?;
             return Ok(());
         }
     };
 
-    let phone_id = match read_sync_phone_id() {
+    let phone_id = match get_phone_id() {
         Ok(k) => k,
         Err(e) => {
-            log.handle_read_error("phone id", e)?;
+            log.handle_keychain_error("phone id", e)?;
             sleep(Duration::from_millis(10)).await;
             respond_with_failure(socket).await?;
             return Ok(());
@@ -299,28 +298,30 @@ pub async fn sign_request(
 
     log.waiting_on("Waiting for phone authorization ...")?;
 
-    let phone_response: MessageRelayResponse = match sign_on_phone(payload, phone_id,relay_id, key.clone()).await {
-        Ok(res) => res,
-        Err(e) => {
+    let phone_response: PhoneSignResponse =
+        match sign_on_phone(payload, phone_id, relay_id, key.clone()).await {
+            Ok(res) => res,
+            Err(e) => {
                 match e {
                     SignError::PollError(PollError::Timeout) => {
                         log.fail("Timed out")?;
                     }
                     _ => {
-                        log.fail(format!("Encountered Error while waiting for signature: {}", e).as_str())?;
+                        log.fail(
+                            format!("Encountered Error while waiting for signature: {}", e)
+                                .as_str(),
+                        )?;
                     }
                 }
-            sleep(Duration::from_millis(10)).await;
-            respond_with_failure(socket).await ?;
-            return Ok(());
-        }
-    };
+                sleep(Duration::from_millis(10)).await;
+                respond_with_failure(socket).await?;
+                return Ok(());
+            }
+        };
 
     println!("Decrypting message...");
 
-    let data: PhoneSignResponse = decrypt(phone_response.message, key)?;
-
-    if !data.accepted {
+    if !phone_response.accepted {
         log.fail("Request was denied")?;
         respond_with_failure(socket).await?;
         return Ok(());
@@ -328,7 +329,7 @@ pub async fn sign_request(
 
     log.success("Accepted request")?;
 
-    let signature_bytes = base64::decode(data.signature.unwrap())?;
+    let signature_bytes = base64::decode(phone_response.signature.unwrap())?;
     println!("responding to socket with authorization");
 
     let typ = 14u8;

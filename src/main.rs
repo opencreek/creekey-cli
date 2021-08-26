@@ -1,18 +1,7 @@
-#[allow(dead_code)] // because we have multiple entry points.
-mod agent;
-mod communication;
-mod constants;
-mod me;
-mod output;
-mod pairing;
-mod setup_git;
-mod setup_ssh;
-mod sign_on_phone;
-mod ssh_agent;
-mod ssh_proxy;
-mod test_sign;
-mod unpair;
-mod serects;
+use std::panic;
+
+use anyhow::Result;
+use clap::{clap_app, AppSettings};
 
 use crate::me::print_ssh_key;
 use crate::output::Log;
@@ -23,11 +12,22 @@ use crate::ssh_agent::start_agent;
 use crate::ssh_proxy::start_ssh_proxy;
 use crate::test_sign::test_sign;
 use crate::unpair::unpair;
-use anyhow::Result;
 
-use clap::{clap_app, AppSettings};
-
-use std::panic;
+#[allow(dead_code)] // because we have multiple entry points.
+mod agent;
+mod communication;
+mod constants;
+mod keychain;
+mod me;
+mod output;
+mod pairing;
+mod setup_git;
+mod setup_ssh;
+mod sign_on_phone;
+mod ssh_agent;
+mod ssh_proxy;
+mod test_sign;
+mod unpair;
 
 #[tokio::main]
 async fn main() -> Result<()> {

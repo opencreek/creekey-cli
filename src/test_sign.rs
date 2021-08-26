@@ -1,18 +1,34 @@
 use crate::communication::PollError;
+use crate::keychain::{get_phone_id, get_secret_key};
 use crate::output::Log;
 use crate::sign_on_phone::{sign_on_phone, SignError};
-use crate::ssh_agent::{read_sync_key, read_sync_phone_id, PhoneSignResponse};
+use crate::ssh_agent::PhoneSignResponse;
 use anyhow::Result;
 
 use sodiumoxide::randombytes::randombytes;
 use std::collections::HashMap;
+use std::thread::sleep;
+use tokio::time::Duration;
 
 pub async fn test_sign() -> Result<()> {
-    let key = read_sync_key()?;
-    let phone_id = read_sync_phone_id()?;
+    let mut log = Log::NONE;
+    let key = match get_secret_key() {
+        Ok(k) => k,
+        Err(e) => {
+            log.handle_keychain_error("secret key", e)?;
+            return Ok(());
+        }
+    };
+
+    let phone_id = match get_phone_id() {
+        Ok(k) => k,
+        Err(e) => {
+            log.handle_keychain_error("phone id", e)?;
+            return Ok(());
+        }
+    };
     let relay_id = base64::encode_config(randombytes(32), base64::URL_SAFE);
     let base64_data = base64::encode(randombytes(128));
-    let log = Log::NONE;
 
     let mut payload = HashMap::new();
     let relay_id2 = relay_id.clone();

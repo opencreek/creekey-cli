@@ -1,3 +1,4 @@
+use crate::keychain::KeyChainError;
 use crate::ssh_agent::ReadError;
 use anyhow::Result;
 use colored::{Color, Colorize};
@@ -91,6 +92,23 @@ impl<'a> Log<'a> {
         )?;
         self.println("🚨", "Aborting...", Color::Red)?;
         return Ok(());
+    }
+
+    pub fn handle_keychain_error(&mut self, context: &str, error: KeyChainError) -> Result<()> {
+        match error {
+            KeyChainError::Missing => {
+                self.print_not_paired_error(format!("Could not find {} in keychain", context))?;
+            }
+            e => {
+                self.println(
+                    "🚨",
+                    format!("Could not Read {}: {}", context, e).as_str(),
+                    Color::Red,
+                )?;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn handle_read_error(&mut self, context: &str, error: ReadError) -> Result<()> {

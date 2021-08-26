@@ -2,6 +2,7 @@ use crate::communication::{decrypt, poll_for_message, PollError};
 use crate::constants::{
     get_config_folder, get_phone_id_path, get_secret_key_path, get_ssh_key_path,
 };
+use crate::keychain::{store_phone_id, store_secret_key};
 use crate::output::Log;
 use anyhow::{anyhow, Result};
 use colored::Color;
@@ -11,6 +12,7 @@ use qrcode::render::Canvas;
 use qrcode::{EcLevel, QrCode, Version};
 use serde::{Deserialize, Serialize};
 
+use byteorder::WriteBytesExt;
 use sodiumoxide::crypto::kx;
 use sodiumoxide::crypto::kx::PublicKey;
 use sodiumoxide::crypto::kx::SecretKey;
@@ -22,7 +24,6 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use whoami::{hostname, username};
-use byteorder::{WriteBytesExt};
 
 pub fn render_qr_code(str: &[u8], small: bool) {
     let mut size = 1;
@@ -104,7 +105,7 @@ struct PairingData {
 struct ClientPairingData {
     phone_id: String,
     public_key_ssh: String,
-    rx: String, // TODO what exactly are these lol
+    rx: Vec<u8>,
 }
 
 fn decode_pairing_response(
@@ -119,17 +120,15 @@ fn decode_pairing_response(
 
     memzero(tx.0.as_mut());
 
-    let base64rx = base64::encode(rx.as_ref());
-
     let data: PairingData = decrypt(response.message, Key(rx.as_ref().try_into()?))?;
     Ok(ClientPairingData {
         phone_id: data.phone_id,
         public_key_ssh: data.public_key_ssh,
-        rx: base64rx,
+        rx: rx.0.try_into()?,
     })
 }
 
-fn make_pairing_message(exchange: PairingRequest) ->  Vec<u8> {
+fn make_pairing_message(exchange: PairingRequest) -> Vec<u8> {
     let mut ret = Vec::new();
     ret.write_u8(1);
 
@@ -195,9 +194,10 @@ pub async fn pair(small: bool) -> Result<()> {
     let client_data = decode_pairing_response(client_pk, client_sk, response)?;
     log.println("💾", "Saving Pairing data...", Color::Green)?;
 
-    write_key_to_disc(client_data.rx)?;
+    eprintln!("key:{:X?}", client_data.rx);
+    store_secret_key(client_data.rx).unwrap();
+    store_phone_id(client_data.phone_id).unwrap();
     write_public_ssh_to_disc(client_data.public_key_ssh)?;
-    write_phone_id_to_disk(client_data.phone_id)?;
     log.println("✔️", "Done!", Color::Green)?;
 
     log.user_todo("Run 'creekey setup-ssh' to auto set up your ssh configuration")?;
