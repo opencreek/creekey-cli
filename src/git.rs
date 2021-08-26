@@ -14,13 +14,13 @@ use crate::sign_on_phone::{sign_on_phone, SignError};
 use anyhow::Result;
 
 use pgp::armor::BlockType;
-use pgp::types::Tag::LiteralData;
+
 use serde::{Deserialize, Serialize};
 use sodiumoxide::randombytes::randombytes;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
-use std::io::{stdin, stdout, Read, Write};
+use std::io::{stdin, Read, Write};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct GgpRequest {
