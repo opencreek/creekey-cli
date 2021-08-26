@@ -15,15 +15,15 @@ use anyhow::Result;
 
 use pgp::armor::BlockType;
 
+use clap::{App, AppSettings, Arg};
 use serde::{Deserialize, Serialize};
 use sodiumoxide::randombytes::randombytes;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
-use clap::{App, Arg, AppSettings};
-use std::io::{stdin, stdout, Read, Write, stderr};
-use std::process::{Command, Stdio};
 use std::fs::File;
+use std::io::{stderr, stdin, stdout, Read, Write};
+use std::process::{Command, Stdio};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct GgpRequest {
@@ -62,16 +62,29 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
     check_color_tty();
 
     let file = fs::OpenOptions::new().write(true).open(path)?;
-    let log = Log::from_file(&file);
+    let mut log = Log::from_file(&file);
     let mut buffer = String::new();
 
     stdin().read_to_string(&mut buffer)?;
 
     let base64_data = base64::encode(&buffer);
 
-    let phone_id = get_phone_id().unwrap();
+    let phone_id = match get_phone_id() {
+        Ok(id) => id,
+        Err(e) => {
+            log.handle_keychain_error("phone id", e)?;
+            return Ok(());
+        }
+    };
+    let key = match get_secret_key() {
+        Ok(id) => id,
+        Err(e) => {
+            log.handle_keychain_error("phone id", e)?;
+            return Ok(());
+        }
+    };
+
     let relay_id = base64::encode_config(randombytes(32), base64::URL_SAFE);
-    let key = get_secret_key()?;
     let request = GgpRequest {
         data: base64_data,
         message_type: "gpg".to_string(),
@@ -137,7 +150,6 @@ fn forward_to_pgp() -> Result<()> {
 
     child.wait()?;
 
-
     Ok(())
 }
 
@@ -157,32 +169,32 @@ async fn main() -> Result<()> {
             Arg::with_name("status-fd")
                 .long("status-fd")
                 .takes_value(true)
-                .help("idk lol")
+                .help("idk lol"),
         )
         .arg(
             Arg::with_name("sign")
-                 .short("s")
-                 .long("sign")
-                 .help("makes a signature")
+                .short("s")
+                .long("sign")
+                .help("makes a signature"),
         )
         .arg(
             Arg::with_name("detach-sign")
                 .short("b")
                 .long("detach-sign")
-                .help("makes a detached signature")
+                .help("makes a detached signature"),
         )
         .arg(
             Arg::with_name("local-user")
                 .short("u")
                 .long("socal-user")
                 .takes_value(true)
-                .help("encrypt for USER-ID (todo)")
+                .help("encrypt for USER-ID (todo)"),
         )
         .arg(
             Arg::with_name("armor")
                 .short("a")
                 .long("armor")
-                .help("prints armor ascii output")
+                .help("prints armor ascii output"),
         );
     let matches = app.get_matches_safe();
 
@@ -194,8 +206,9 @@ async fn main() -> Result<()> {
                 forward_to_pgp()?;
             }
         }
-        _ => {forward_to_pgp()?;}
-
+        _ => {
+            forward_to_pgp()?;
+        }
     }
     Ok(())
 }

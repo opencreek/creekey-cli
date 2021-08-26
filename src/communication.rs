@@ -57,12 +57,6 @@ pub fn decrypt<V: DeserializeOwned>(text: String, key: Key) -> Result<V, Decrypt
             .map_err(|_| DecryptionError::InvalidNonceLength)?,
     );
 
-    eprintln!(
-        "nounce: {:X?}\ncipher: {:X?}\nkey: {:X?}",
-        &nonce_bytes,
-        &ciphertext,
-        &key.as_ref()
-    );
     let plaintext = secretbox::open(&ciphertext, &nonce, &key)
         .map_err(|_| DecryptionError::CouldNotBeDecrypted)?;
 

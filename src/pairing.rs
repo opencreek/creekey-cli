@@ -20,8 +20,8 @@ use std::convert::TryInto;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
-use whoami::{hostname, username};
 use std::process::{Command, Stdio};
+use whoami::{hostname, username};
 
 pub fn render_qr_code(str: &[u8], small: bool) {
     let mut size = 1;
@@ -205,14 +205,14 @@ pub async fn pair(small: bool) -> Result<()> {
     let mut gpg = Command::new("gpg")
         .arg("--import")
         .stdin(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .spawn().unwrap();
+        .stderr(Stdio::null())
+        .stdout(Stdio::null())
+        .spawn()
+        .unwrap();
 
     let mut stdin = gpg.stdin.take();
 
     if let Some(mut stdin) = stdin {
-        eprintln!("{}",client_data.public_key_gpg);
         stdin.write_all(client_data.public_key_gpg.as_bytes());
     }
 
