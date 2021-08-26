@@ -101,7 +101,6 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
         return Ok(());
     }
     log.success("Accepted")?;
-    log.success(&format!("{:X?}", response))?;
 
     if let Some(data_base64) = response.signature {
         let out = base64::decode(data_base64)?;
@@ -109,7 +108,6 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
         if (armour_output) {
             let mut header: BTreeMap<String, String> = BTreeMap::new();
             header.insert("Comment".to_string(), "Signed with creekey.io".to_string());
-            log.success(&format!("data: {:X?}", out))?;
 
             let mut res = Vec::with_capacity(out.len() * 2);
             let source = ArmourSource::new(out);
