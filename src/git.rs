@@ -20,7 +20,10 @@ use sodiumoxide::randombytes::randombytes;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
-use std::io::{stdin, Read, Write};
+use clap::{App, Arg, AppSettings};
+use std::io::{stdin, stdout, Read, Write, stderr};
+use std::process::{Command, Stdio};
+use std::fs::File;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct GgpRequest {
@@ -36,6 +39,7 @@ struct GgpResponse {
     signature: Option<String>,
     accepted: bool,
 }
+
 struct ArmourSource {
     content: Vec<u8>,
 }
@@ -53,7 +57,7 @@ impl ArmourSource {
     }
 }
 
-pub async fn sign_git_commit() -> Result<()> {
+pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
     let path = env::var("GPG_TTY")?;
     check_color_tty();
 
@@ -101,24 +105,101 @@ pub async fn sign_git_commit() -> Result<()> {
 
     if let Some(data_base64) = response.signature {
         let out = base64::decode(data_base64)?;
-        let mut header: BTreeMap<String, String> = BTreeMap::new();
-        header.insert("Comment".to_string(), "Signed with creekey.io".to_string());
-        log.success(&format!("data: {:X?}", out))?;
 
-        let mut res = Vec::with_capacity(out.len() * 2);
-        let source = ArmourSource::new(out);
-        pgp::armor::write(&source, BlockType::Signature, &mut res, Some(&header))?;
+        if (armour_output) {
+            let mut header: BTreeMap<String, String> = BTreeMap::new();
+            header.insert("Comment".to_string(), "Signed with creekey.io".to_string());
+            log.success(&format!("data: {:X?}", out))?;
 
-        let str = String::from_utf8(res.clone()).unwrap();
-        print!("{}", str);
-        log.info(&format!("\n{}", str));
+            let mut res = Vec::with_capacity(out.len() * 2);
+            let source = ArmourSource::new(out);
+            pgp::armor::write(&source, BlockType::Signature, &mut res, Some(&header))?;
+
+            let str = String::from_utf8(res.clone()).unwrap();
+            print!("{}", str);
+            log.info(&format!("\n{}", str));
+            eprintln!("\n[GNUPG:] SIG_CREATED ")
+        } else {
+            // raw output to stdout i guess
+            stdout().write_all(&out)?;
+        }
     }
+
+    Ok(())
+}
+
+fn forward_to_pgp() -> Result<()> {
+    let mut args: Vec<String> = env::args().collect();
+    args.remove(0);
+    let mut child = Command::new("gpg")
+        .args(args)
+        .stdout(Stdio::inherit())
+        .stdin(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+
+    child.wait()?;
+
 
     Ok(())
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    sign_git_commit().await?;
+    let path = env::var("GPG_TTY")?;
+    check_color_tty();
+
+    let file = File::create("/home/reckter/gpg-out.log")?;
+    let log = Log::from_file(&file);
+    let mut app = App::new("creekey git sign")
+        .version("0.1.0")
+        .author("Opencreek Technogoly UG - opencreek.tech")
+        .about("Git signing with creekey.io")
+        .setting(AppSettings::AllowExternalSubcommands)
+        .arg(
+            Arg::with_name("status-fd")
+                .long("status-fd")
+                .takes_value(true)
+                .help("idk lol")
+        )
+        .arg(
+            Arg::with_name("sign")
+                 .short("s")
+                 .long("sign")
+                 .help("makes a signature")
+        )
+        .arg(
+            Arg::with_name("detach-sign")
+                .short("b")
+                .long("detach-sign")
+                .help("makes a detached signature")
+        )
+        .arg(
+            Arg::with_name("local-user")
+                .short("u")
+                .long("socal-user")
+                .takes_value(true)
+                .help("encrypt for USER-ID (todo)")
+        )
+        .arg(
+            Arg::with_name("armor")
+                .short("a")
+                .long("armor")
+                .help("prints armor ascii output")
+        );
+    let matches = app.get_matches_safe();
+
+    log.info(&format!("{:X?}", matches));
+    match matches {
+        Ok(matches) => {
+            if matches.is_present("sign") || matches.is_present("detach-sign") {
+                sign_git_commit(matches.is_present("armor")).await?;
+            } else {
+                forward_to_pgp()?;
+            }
+        }
+        _ => {forward_to_pgp()?;}
+
+    }
     Ok(())
 }
