@@ -18,7 +18,7 @@ pub fn string_log(emoji: &str, line: &str, color: Color) -> String {
         Err(_) => "\x1b[38;5;202mcreekey\x1b[0;m".to_string(),
     };
 
-    format!("{} {}\t{}", name, emoji, line.color(color))
+    format!("{} {} \t{}", name, emoji, line.color(color))
 }
 
 impl<'a> Log<'a> {
