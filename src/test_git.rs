@@ -80,8 +80,10 @@ pub async fn test_git() -> Result<()> {
 
     match signature_valid.as_str() {
         "N" => {
-            log.fail("No signature detected. That probably means that it's not setup yet")?;
-            log.user_todo("Run 'creekey setupgit'.")?;
+            log.fail("No signature detected.")?;
+            log.fail("That either means yo do nat have gpg installed (which is ok, we don't need that to actually sign anything)")?;
+            log.fail("Or it means that it's not setup yet, in which case:")?;
+            log.user_todo("Run 'creekey setupgit' if you haven't already.")?;
         }
         "E" => {
             log.fail("Could not verify signature.")?;
