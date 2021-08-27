@@ -22,7 +22,7 @@ use sodiumoxide::randombytes::randombytes;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
-use std::fs::File;
+
 use std::io::{stdin, stdout, Read, Write};
 use std::process::{Command, Stdio};
 

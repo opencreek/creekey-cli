@@ -52,7 +52,7 @@ pub fn add_pub_key_to_pgp(log: Log) -> Result<()> {
             if !res.success() {
                 let stdout = gpg.stdout.take();
                 let mut stdout_string = String::new();
-                stdout.unwrap().read_to_string(&mut stdout_string)|;
+                stdout.unwrap().read_to_string(&mut stdout_string)?;
                 handle_command_error(res.code(), stdout_string, &log).unwrap();
             }
         }
