@@ -164,13 +164,16 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
 fn forward_to_pgp() -> Result<()> {
     let mut args: Vec<String> = env::args().collect();
     args.remove(0);
-    let mut child = Command::new("gpg")
+    let mut child = match Command::new("gpg")
         .args(args)
         .stdout(Stdio::inherit())
         .stdin(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
-        .unwrap();
+    {
+        Ok(c) => c,
+        Err(_) => return Ok(()),
+    };
 
     child.wait().unwrap();
 
