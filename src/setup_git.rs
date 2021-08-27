@@ -9,16 +9,36 @@ const ENABLE_SIGN_CMD: &str = "git config --global commit.gpgsign true";
 //TODO this is probably different !!
 const SET_GPG_SIGNER_CMD: &str = "git config --global gpg.program /usr/bin/creekey-gpg-sign";
 
+fn handle_command_error(code: Option<i32>, error_message: String, log: &Log) {
+    if code == Some(127) {
+        log.error(
+            "It looks like you do not have a gpg agent setup. Don't worry, we don't need one.",
+        );
+        log.error("If you even decide to install one, simply run this setup again, to have the creekey public key imported");
+    } else {
+        log.error("Got error while running gpg import:");
+        log.error(&format!("\n{}", error_message));
+        log.error("If you don't need the key in your pgp agent, don't worry. You can simply ignore this message.");
+        log.error("If you ever decide otherwise, simply run this setup again, to have the creekey public key imported");
+    }
+}
+
 pub fn add_pub_key_to_pgp(log: Log) -> Result<()> {
     let key = get_gpg_from_keychain()?;
 
-    let mut gpg = Command::new("gpg")
+    let mut gpg = match Command::new("gpg")
         .arg("--import")
         .stdin(Stdio::piped())
         .stderr(Stdio::piped())
         .stdout(Stdio::null())
         .spawn()
-        .unwrap();
+    {
+        Ok(child) => child,
+        Err(e) => {
+            handle_command_error(e.raw_os_error(), format!("{}", e), &log);
+            return Ok(());
+        }
+    };
 
     let stdin = gpg.stdin.take();
 
@@ -29,24 +49,14 @@ pub fn add_pub_key_to_pgp(log: Log) -> Result<()> {
     match gpg.wait() {
         Ok(res) => {
             if !res.success() {
-                if res.code() == Some(127) {
-                    log.error("It looks like you do not have a gpg agent setup. Don't worry, we don't need one.");
-                    log.error("If you even decide to install one, simply run this setup again, to have the creekey public key imported");
-                } else {
-                    log.error("Got error while running gpg import:");
-                    let stdout = gpg.stdout.take();
-                    let mut stdout_string = String::new();
-                    stdout.unwrap().read_to_string(&mut stdout_string);
-                    log.error(&format!("\n{}", stdout_string));
-                    log.error("If you don't need the key in your pgp agent, don't worry. You can simply ignore this message.");
-                    log.error("If you ever decide otherwise, simply run this setup again, to have the creekey public key imported");
-                }
+                let stdout = gpg.stdout.take();
+                let mut stdout_string = String::new();
+                stdout.unwrap().read_to_string(&mut stdout_string);
+                handle_command_error(res.code(), stdout_string, &log);
             }
         }
         Err(e) => {
-            log.error(&format!("Failed to run gpg: {}", e));
-            log.error("If you don't need the key in your pgp agent, don't worry. You can simply ignore this message.");
-            log.error("If you ever decide otherwise, simply run this setup again, to have the creekey public key imported");
+            handle_command_error(e.raw_os_error(), format!("{}", e), &log);
         }
     }
 
