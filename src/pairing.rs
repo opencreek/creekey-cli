@@ -20,7 +20,7 @@ use std::convert::TryInto;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
-use std::process::{Command, Stdio};
+
 use std::thread::sleep;
 use tokio::time::Duration;
 use whoami::{hostname, username};
