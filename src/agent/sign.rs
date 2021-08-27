@@ -265,6 +265,8 @@ pub async fn sign_request(
     }
     payload.insert("relayId", relay_id.clone());
 
+    log.waiting_on("Waiting for phone authorization ...")?;
+
     let key = match get_secret_key() {
         Ok(k) => k,
         Err(e) => {
@@ -284,8 +286,6 @@ pub async fn sign_request(
             return Ok(());
         }
     };
-
-    log.waiting_on("Waiting for phone authorization ...")?;
 
     let phone_response: PhoneSignResponse =
         match sign_on_phone(payload, phone_id, relay_id, key.clone()).await {

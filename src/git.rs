@@ -181,8 +181,6 @@ async fn main() -> Result<()> {
     let _path = env::var("GPG_TTY")?;
     check_color_tty();
 
-    let file = File::create("/home/reckter/gpg-out.log")?;
-    let _log = Log::from_file(&file);
     let app = App::new("creekey git sign")
         .version("0.1.0")
         .author("Opencreek Technogoly UG - opencreek.tech")

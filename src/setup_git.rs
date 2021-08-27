@@ -7,7 +7,7 @@ use std::process::{Command, Stdio};
 
 const ENABLE_SIGN_CMD: &str = "git config --global commit.gpgsign true";
 //TODO this is probably different !!
-const SET_GPG_SIGNER_CMD: &str = "git config --global gpg.program /usr/bin/creekey-gpg-sign";
+const SET_GPG_SIGNER_CMD: &str = "git config --global gpg.program creekey-git-sign";
 
 fn handle_command_error(code: Option<i32>, error_message: String, log: &Log) {
     if code == Some(127) {
