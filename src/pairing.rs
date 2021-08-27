@@ -1,6 +1,6 @@
 use crate::communication::{decrypt, poll_for_message, PollError};
 use crate::constants::{get_config_folder, get_ssh_key_path};
-use crate::keychain::{store_gpg_in_keychain,  store_pairing_data};
+use crate::keychain::{store_gpg_in_keychain, store_pairing_data};
 use crate::output::Log;
 use anyhow::{anyhow, Result};
 use colored::Color;

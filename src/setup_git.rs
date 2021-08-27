@@ -9,7 +9,7 @@ const ENABLE_SIGN_CMD: &str = "git config --global commit.gpgsign true";
 //TODO this is probably different !!
 const SET_GPG_SIGNER_CMD: &str = "git config --global gpg.program creekey-git-sign";
 
-fn handle_command_error(code: Option<i32>, error_message: String, log: &Log) -> Result<()>{
+fn handle_command_error(code: Option<i32>, error_message: String, log: &Log) -> Result<()> {
     if code == Some(127) {
         log.error(
             "It looks like you do not have a gpg agent setup. Don't worry, we don't need one.",
@@ -94,12 +94,7 @@ pub fn setup_git(force: bool) -> Result<()> {
             .output()?;
         //TODO this is probably different !!
         Command::new("git")
-            .args(&[
-                "config",
-                "--global",
-                "gpg.program",
-                "creekey-git-sign",
-            ])
+            .args(&["config", "--global", "gpg.program", "creekey-git-sign"])
             .output()?;
 
         log.success("Succesfully Configured git!")?;

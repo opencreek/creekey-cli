@@ -10,6 +10,7 @@ use crate::setup_git::setup_git;
 use crate::setup_ssh::setup_ssh;
 use crate::ssh_agent::start_agent;
 use crate::ssh_proxy::start_ssh_proxy;
+use crate::test_git::test_git;
 use crate::test_sign::test_sign;
 use crate::unpair::unpair;
 
@@ -26,6 +27,7 @@ mod setup_ssh;
 mod sign_on_phone;
 mod ssh_agent;
 mod ssh_proxy;
+mod test_git;
 mod test_sign;
 mod unpair;
 
@@ -42,7 +44,7 @@ async fn main() -> Result<()> {
             (about: "Pair with a phone")
             (@arg small: -s --small "Prints a smaller more condensed version")
         )
-        (@subcommand testgpg =>
+        (@subcommand testgit =>
             (about: "test command ")
         )
         (@subcommand unpair =>
@@ -84,7 +86,7 @@ async fn main() -> Result<()> {
     let ret = match matches.subcommand() {
         ("pair", Some(matches)) => pair(matches.is_present("small")).await,
         ("unpair", _) => unpair().await,
-        // ("testgpg", _) => sign_git_commit().await,
+        ("testgit", _) => test_git().await,
         ("test", _) => test_sign().await,
         ("setupssh", Some(matches)) => setup_ssh(matches.is_present("force")),
         ("setupgit", Some(matches)) => setup_git(matches.is_present("force")),

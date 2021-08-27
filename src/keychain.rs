@@ -77,8 +77,6 @@ pub fn get_secret_key() -> Result<Key, KeyChainError> {
         .map_err(|_| KeyChainError::ParseError)?)
 }
 
-
-
 pub fn get_phone_id() -> Result<String, KeyChainError> {
     let value = get(PAIRING_DATA)?;
     let split: Vec<&str> = value.split("|").collect();
@@ -87,7 +85,7 @@ pub fn get_phone_id() -> Result<String, KeyChainError> {
     Ok(phone_id.to_string())
 }
 
-pub fn store_pairing_data(key: Vec<u8>, phone_id : String) -> Result<(), KeyChainError> {
+pub fn store_pairing_data(key: Vec<u8>, phone_id: String) -> Result<(), KeyChainError> {
     let key_base64 = base64::encode(key);
     set(PAIRING_DATA, format!("{}|{}", phone_id, key_base64))
 }

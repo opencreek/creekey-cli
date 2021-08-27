@@ -169,7 +169,8 @@ fn forward_to_pgp() -> Result<()> {
         .stdout(Stdio::inherit())
         .stdin(Stdio::inherit())
         .stderr(Stdio::inherit())
-        .spawn().unwrap();
+        .spawn()
+        .unwrap();
 
     child.wait().unwrap();
 
