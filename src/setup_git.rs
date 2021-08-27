@@ -9,18 +9,19 @@ const ENABLE_SIGN_CMD: &str = "git config --global commit.gpgsign true";
 //TODO this is probably different !!
 const SET_GPG_SIGNER_CMD: &str = "git config --global gpg.program creekey-git-sign";
 
-fn handle_command_error(code: Option<i32>, error_message: String, log: &Log) {
+fn handle_command_error(code: Option<i32>, error_message: String, log: &Log) -> Result<()>{
     if code == Some(127) {
         log.error(
             "It looks like you do not have a gpg agent setup. Don't worry, we don't need one.",
-        );
-        log.error("If you even decide to install one, simply run this setup again, to have the creekey public key imported");
+        )?;
+        log.error("If you even decide to install one, simply run this setup again, to have the creekey public key imported")?;
     } else {
-        log.error("Got error while running gpg import:");
-        log.error(&format!("\n{}", error_message));
-        log.error("If you don't need the key in your pgp agent, don't worry. You can simply ignore this message.");
-        log.error("If you ever decide otherwise, simply run this setup again, to have the creekey public key imported");
+        log.error("Got error while running gpg import:")?;
+        log.error(&format!("\n{}", error_message))?;
+        log.error("If you don't need the key in your pgp agent, don't worry. You can simply ignore this message.")?;
+        log.error("If you ever decide otherwise, simply run this setup again, to have the creekey public key imported")?;
     }
+    Ok(())
 }
 
 pub fn add_pub_key_to_pgp(log: Log) -> Result<()> {
@@ -35,7 +36,7 @@ pub fn add_pub_key_to_pgp(log: Log) -> Result<()> {
     {
         Ok(child) => child,
         Err(e) => {
-            handle_command_error(e.raw_os_error(), format!("{}", e), &log);
+            handle_command_error(e.raw_os_error(), format!("{}", e), &log)?;
             return Ok(());
         }
     };
@@ -43,7 +44,7 @@ pub fn add_pub_key_to_pgp(log: Log) -> Result<()> {
     let stdin = gpg.stdin.take();
 
     if let Some(mut stdin) = stdin {
-        stdin.write_all(key.as_bytes());
+        stdin.write_all(key.as_bytes())?;
     }
 
     match gpg.wait() {
@@ -51,12 +52,12 @@ pub fn add_pub_key_to_pgp(log: Log) -> Result<()> {
             if !res.success() {
                 let stdout = gpg.stdout.take();
                 let mut stdout_string = String::new();
-                stdout.unwrap().read_to_string(&mut stdout_string);
-                handle_command_error(res.code(), stdout_string, &log);
+                stdout.unwrap().read_to_string(&mut stdout_string)|;
+                handle_command_error(res.code(), stdout_string, &log).unwrap();
             }
         }
         Err(e) => {
-            handle_command_error(e.raw_os_error(), format!("{}", e), &log);
+            handle_command_error(e.raw_os_error(), format!("{}", e), &log).unwrap();
         }
     }
 

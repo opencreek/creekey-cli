@@ -80,7 +80,7 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
 
     let file = match fs::OpenOptions::new().write(true).open(path) {
         Ok(it) => it,
-        Err(e) => {
+        Err(_) => {
             Log::NONE.error("Could not get tty to write to!")?;
             return Err(anyhow!("Could not get tty to writeto"));
         }
