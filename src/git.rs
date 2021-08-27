@@ -15,6 +15,7 @@ use anyhow::Result;
 
 use pgp::armor::BlockType;
 
+use anyhow::anyhow;
 use clap::{App, AppSettings, Arg};
 use serde::{Deserialize, Serialize};
 use sodiumoxide::randombytes::randombytes;
@@ -58,10 +59,32 @@ impl ArmourSource {
 }
 
 pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
-    let path = env::var("GPG_TTY")?;
+    let path = match env::var("GPG_TTY") {
+        Ok(it) => it,
+        Err(_) => {
+            let mut tty = Command::new("tty")
+                .stdout(Stdio::piped())
+                .stdin(Stdio::null())
+                .spawn()?;
+
+            tty.wait()?;
+
+            let mut string = String::new();
+            let mut stdout = tty.stdout.take().unwrap();
+            stdout.read_to_string(&mut string)?;
+            string
+        }
+    };
+
     check_color_tty();
 
-    let file = fs::OpenOptions::new().write(true).open(path)?;
+    let file = match fs::OpenOptions::new().write(true).open(path) {
+        Ok(it) => it,
+        Err(e) => {
+            Log::NONE.error("Could not get tty to write to!")?;
+            return Err(anyhow!("Could not get tty to writeto"));
+        }
+    };
     let mut log = Log::from_file(&file);
     let mut buffer = String::new();
 
