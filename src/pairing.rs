@@ -1,6 +1,6 @@
 use crate::communication::{decrypt, poll_for_message, PollError};
 use crate::constants::{get_config_folder, get_ssh_key_path};
-use crate::keychain::{store_gpg_in_keychain, store_phone_id, store_secret_key};
+use crate::keychain::{store_gpg_in_keychain,  store_pairing_data};
 use crate::output::Log;
 use anyhow::{anyhow, Result};
 use colored::Color;
@@ -202,8 +202,7 @@ pub async fn pair(small: bool) -> Result<()> {
     log.user_todo("We will save the pairing information in your keychain. You might need to unlock it / give access to it (even multiple times depending on implementaiton)")?;
     sleep(Duration::from_millis(2000));
 
-    store_secret_key(client_data.rx)?;
-    store_phone_id(client_data.phone_id)?;
+    store_pairing_data(client_data.rx, client_data.phone_id)?;
     store_gpg_in_keychain(client_data.public_key_gpg)?;
 
     write_public_ssh_to_disc(client_data.public_key_ssh)?;

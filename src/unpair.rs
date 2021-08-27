@@ -3,7 +3,7 @@ use crate::communication::send_to_phone;
 use crate::output::Log;
 
 use crate::keychain::{
-    delete_gpg_from_keyychain, delete_phone_id, delete_secret_key, get_phone_id, get_secret_key,
+    delete_gpg_from_keyychain, delete_pairing_data, get_phone_id, get_secret_key,
 };
 use anyhow::Result;
 
@@ -39,8 +39,7 @@ pub async fn unpair() -> Result<()> {
 
     send_to_phone(key, payload, phone_id).await?;
 
-    delete_phone_id()?;
-    delete_secret_key()?;
+    delete_pairing_data()?;
     delete_gpg_from_keyychain()?;
 
     log.success("Succesfully Unpaired")?;

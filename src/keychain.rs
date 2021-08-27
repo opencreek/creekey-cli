@@ -23,6 +23,9 @@ const SERVICE: &str = "creekey";
 
 const SECRET_KEY: &str = "secret-key";
 const PHONE_ID: &str = "phone-id";
+
+// <phone-id>|<key>
+const PAIRING_DATA: &str = "pairing-data";
 const GPG_KEY: &str = "gpg-key";
 
 fn get(id: &str) -> Result<String, KeyChainError> {
@@ -65,33 +68,32 @@ fn delete(id: &str) -> Result<(), KeyChainError> {
 }
 
 pub fn get_secret_key() -> Result<Key, KeyChainError> {
-    let value = get(SECRET_KEY)?;
-    eprintln!("{:X?}", value);
-    let decoded = base64::decode(value).map_err(|_| KeyChainError::ParseError)?;
+    let value = get(PAIRING_DATA)?;
+    let split: Vec<&str> = value.split("|").collect();
+    let key = split[1];
+    let decoded = base64::decode(key).map_err(|_| KeyChainError::ParseError)?;
     Ok(secretbox::Key::from_slice(&decoded)
         .context("")
         .map_err(|_| KeyChainError::ParseError)?)
 }
 
-pub fn store_secret_key(key: Vec<u8>) -> Result<(), KeyChainError> {
-    let encoded = base64::encode(key);
-    set(SECRET_KEY, encoded)
-}
 
-pub fn delete_secret_key() -> Result<(), KeyChainError> {
-    delete(SECRET_KEY)
-}
 
 pub fn get_phone_id() -> Result<String, KeyChainError> {
-    get(PHONE_ID)
+    let value = get(PAIRING_DATA)?;
+    let split: Vec<&str> = value.split("|").collect();
+    let phone_id = split[0];
+
+    Ok(phone_id.to_string())
 }
 
-pub fn store_phone_id(phone_id: String) -> Result<(), KeyChainError> {
-    set(PHONE_ID, phone_id)
+pub fn store_pairing_data(key: Vec<u8>, phone_id : String) -> Result<(), KeyChainError> {
+    let key_base64 = base64::encode(key);
+    set(PAIRING_DATA, format!("{}|{}", phone_id, key_base64))
 }
 
-pub fn delete_phone_id() -> Result<(), KeyChainError> {
-    delete(PHONE_ID)
+pub fn delete_pairing_data() -> Result<(), KeyChainError> {
+    delete(PAIRING_DATA)
 }
 
 pub fn get_gpg_from_keychain() -> Result<String, KeyChainError> {
