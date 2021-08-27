@@ -37,7 +37,7 @@ ecdsa= { version="0.12.4"}
 ring-compat={ version="0.3.1", features=["signature"]}
 openssl="0.10.36"
 keyring="0.10.1"
-pgp="0.7.1"
+pgp={ git= "https://github.com/rpgp/rpgp"} # The relaesed version has a dependency issue
 
 [[bin]]
 name = "creekey-git-sign"
