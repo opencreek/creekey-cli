@@ -1,12 +1,57 @@
+use crate::keychain::get_gpg_from_keychain;
 use crate::output::Log;
 use anyhow::{Context, Result};
 use colored::Color;
-use std::io::stdin;
-use std::process::Command;
+use std::io::{stdin, Read, Write};
+use std::process::{Command, Stdio};
 
 const ENABLE_SIGN_CMD: &str = "git config --global commit.gpgsign true";
 //TODO this is probably different !!
 const SET_GPG_SIGNER_CMD: &str = "git config --global gpg.program /usr/bin/creekey-gpg-sign";
+
+pub fn add_pub_key_to_pgp(log: Log) -> Result<()> {
+    let key = get_gpg_from_keychain()?;
+
+    let mut gpg = Command::new("gpg")
+        .arg("--import")
+        .stdin(Stdio::piped())
+        .stderr(Stdio::piped())
+        .stdout(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    let stdin = gpg.stdin.take();
+
+    if let Some(mut stdin) = stdin {
+        stdin.write_all(key.as_bytes());
+    }
+
+    match gpg.wait() {
+        Ok(res) => {
+            if !res.success() {
+                if res.code() == Some(127) {
+                    log.error("It looks like you do not have a gpg agent setup. Don't worry, we don't need one.");
+                    log.error("If you even decide to install one, simply run this setup again, to have the creekey public key imported");
+                } else {
+                    log.error("Got error while running gpg import:");
+                    let stdout = gpg.stdout.take();
+                    let mut stdout_string = String::new();
+                    stdout.unwrap().read_to_string(&mut stdout_string);
+                    log.error(&format!("\n{}", stdout_string));
+                    log.error("If you don't need the key in your pgp agent, don't worry. You can simply ignore this message.");
+                    log.error("If you ever decide otherwise, simply run this setup again, to have the creekey public key imported");
+                }
+            }
+        }
+        Err(e) => {
+            log.error(&format!("Failed to run gpg: {}", e));
+            log.error("If you don't need the key in your pgp agent, don't worry. You can simply ignore this message.");
+            log.error("If you ever decide otherwise, simply run this setup again, to have the creekey public key imported");
+        }
+    }
+
+    Ok(())
+}
 
 pub fn setup_git(force: bool) -> Result<()> {
     let log = Log::NONE;
@@ -47,6 +92,8 @@ pub fn setup_git(force: bool) -> Result<()> {
             .output()?;
 
         log.success("Succesfully Configured git!")?;
+        add_pub_key_to_pgp(log)?;
+
         return Ok(());
     }
 
@@ -54,6 +101,8 @@ pub fn setup_git(force: bool) -> Result<()> {
     log.info("For that run:")?;
     eprintln!("\t{}", ENABLE_SIGN_CMD);
     eprintln!("\t{}", SET_GPG_SIGNER_CMD);
+
+    add_pub_key_to_pgp(log)?;
 
     Ok(())
 }

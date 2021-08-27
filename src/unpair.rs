@@ -2,7 +2,9 @@ use crate::communication::send_to_phone;
 
 use crate::output::Log;
 
-use crate::keychain::{delete_phone_id, delete_secret_key, get_phone_id, get_secret_key};
+use crate::keychain::{
+    delete_gpg_from_keyychain, delete_phone_id, delete_secret_key, get_phone_id, get_secret_key,
+};
 use anyhow::Result;
 
 use sodiumoxide::randombytes::randombytes;
@@ -39,6 +41,7 @@ pub async fn unpair() -> Result<()> {
 
     delete_phone_id()?;
     delete_secret_key()?;
+    delete_gpg_from_keyychain()?;
 
     log.success("Succesfully Unpaired")?;
     Ok(())

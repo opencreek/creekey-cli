@@ -1,6 +1,6 @@
 use crate::communication::{decrypt, poll_for_message, PollError};
 use crate::constants::{get_config_folder, get_ssh_key_path};
-use crate::keychain::{store_phone_id, store_secret_key};
+use crate::keychain::{store_gpg_in_keychain, store_phone_id, store_secret_key};
 use crate::output::Log;
 use anyhow::{anyhow, Result};
 use colored::Color;
@@ -21,6 +21,8 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::process::{Command, Stdio};
+use std::thread::sleep;
+use tokio::time::Duration;
 use whoami::{hostname, username};
 
 pub fn render_qr_code(str: &[u8], small: bool) {
@@ -197,26 +199,14 @@ pub async fn pair(small: bool) -> Result<()> {
 
     let client_data = decode_pairing_response(client_pk, client_sk, response)?;
     log.println("💾", "Saving Pairing data...", Color::Green)?;
+    log.user_todo("We will save the pairing information in your keychain. You might need to unlock it / give access to it (even multiple times depending on implementaiton)")?;
+    sleep(Duration::from_millis(2000));
 
-    store_secret_key(client_data.rx).unwrap();
-    store_phone_id(client_data.phone_id).unwrap();
+    store_secret_key(client_data.rx)?;
+    store_phone_id(client_data.phone_id)?;
+    store_gpg_in_keychain(client_data.public_key_gpg)?;
+
     write_public_ssh_to_disc(client_data.public_key_ssh)?;
-
-    let mut gpg = Command::new("gpg")
-        .arg("--import")
-        .stdin(Stdio::piped())
-        .stderr(Stdio::null())
-        .stdout(Stdio::null())
-        .spawn()
-        .unwrap();
-
-    let stdin = gpg.stdin.take();
-
-    if let Some(mut stdin) = stdin {
-        stdin.write_all(client_data.public_key_gpg.as_bytes());
-    }
-
-    gpg.wait().unwrap();
 
     log.println("✔️", "Done!", Color::Green)?;
 

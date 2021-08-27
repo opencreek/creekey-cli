@@ -23,6 +23,7 @@ const SERVICE: &str = "creekey";
 
 const SECRET_KEY: &str = "secret-key";
 const PHONE_ID: &str = "phone-id";
+const GPG_KEY: &str = "gpg-key";
 
 fn get(id: &str) -> Result<String, KeyChainError> {
     let keyring = Keyring::new(&SERVICE, id);
@@ -91,4 +92,16 @@ pub fn store_phone_id(phone_id: String) -> Result<(), KeyChainError> {
 
 pub fn delete_phone_id() -> Result<(), KeyChainError> {
     delete(PHONE_ID)
+}
+
+pub fn get_gpg_from_keychain() -> Result<String, KeyChainError> {
+    get(GPG_KEY)
+}
+
+pub fn store_gpg_in_keychain(key: String) -> Result<(), KeyChainError> {
+    set(GPG_KEY, key)
+}
+
+pub fn delete_gpg_from_keyychain() -> Result<(), KeyChainError> {
+    delete(GPG_KEY)
 }
