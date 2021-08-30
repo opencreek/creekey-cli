@@ -38,25 +38,6 @@ jobs:
                   asset_name: creekey-cli-${{ github.event.release.tag_name }}.catalina.bottle.1.tar.gz
                   asset_content_type: application/gzip
 
-    bottle_macos_arm:
-        name: Build and distribute Homebrew bottle for macOS arm Big Sur
-        runs-on: [self-hosted, macOS, arm]
-        needs: [formula]
-        steps:
-            - name: Build a bottle using Homebrew
-              run: |
-                  arch -arm64 brew tap opencreek/tab
-                  arch -arm64 brew install --build-bottle --verbose creekey
-                  arch -arm64 brew bottle creekey
-            - name: Upload the bottle to the GitHub release
-              uses: actions/upload-release-asset@v1.0.1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              with:
-                  upload_url: ${{ github.event.release.upload_url }}
-                  asset_path: ./creekey--${{ github.event.release.tag_name }}.arm64_big_sur.bottle.1.tar.gz
-                  asset_name: creekey-cli-${{ github.event.release.tag_name }}.arm64_big_sur.bottle.1.tar.gz
-                  asset_content_type: application/gzip
 
     bottle_macos_big_sur:
         name: Build and distribute Homebrew bottle for macOS Big Sur
@@ -84,7 +65,6 @@ jobs:
         needs:
             - bottle_macos_catalina
             - bottle_macos_big_sur
-            - bottle_macos_arm
         steps:
             - uses: NSHipster/update-homebrew-formula-action@main
               with:
