@@ -65,9 +65,9 @@ jobs:
         steps:
             - name: Build a bottle using Homebrew
               run: |
-                  brew tap opencreek/tab
-                  brew install --build-bottle --verbose creekey
-                  brew bottle creekey
+                  arch -arm64 brew tap opencreek/tab
+                  arch -arm64 brew install --build-bottle --verbose creekey
+                  arch -arm64 brew bottle creekey
             - name: Upload the bottle to the GitHub release
               uses: actions/upload-release-asset@v1.0.1
               env:
