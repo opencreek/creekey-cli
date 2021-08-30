@@ -54,6 +54,7 @@ async fn main() -> Result<()> {
             (about: "Prints the Public SSH key")
             (@arg copy: -c --copy "Copys the SSH key to the clipboard")
             (@arg raw: -r --raw "Only outputs the key")
+            (@arg gpg: --gpg "Shows/copy the gpg key")
         )
         (@subcommand setupssh =>
             (about: "Setups ssh")
@@ -91,7 +92,7 @@ async fn main() -> Result<()> {
         ("setupssh", Some(matches)) => setup_ssh(matches.is_present("force")),
         ("setupgit", Some(matches)) => setup_git(matches.is_present("force")),
         ("me", Some(matches)) => {
-            print_ssh_key(matches.is_present("copy"), matches.is_present("raw"))
+            print_ssh_key(matches.is_present("copy"), matches.is_present("raw"), matches.is_present("gpg"))
         }
         ("agent", _) => start_agent(matches.is_present("daemonize")).await,
         ("proxy", Some(matches)) => start_ssh_proxy(matches),
