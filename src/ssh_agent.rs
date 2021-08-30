@@ -84,7 +84,7 @@ pub async fn start_agent(should_daemonize: bool) -> Result<()> {
 
     if should_daemonize {
         let daemonize = Daemonize::new()
-            .chown_pid_file("/tmp/ck-agent.pid");
+            .pid_file("/tmp/ck-agent.pid");
         Log::NONE.waiting_on("Starting deamon...")?;
         daemonize.start()?;
     }
