@@ -7,7 +7,6 @@ Type=simple
 Restart=always
 RestartSec=1
 ExecStart=creekey agent
-User=${-$USER}
 
 [Install]
 WantedBy=default.target
