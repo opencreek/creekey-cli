@@ -20,12 +20,10 @@ pub enum SSHAgentPacket {
 }
 
 pub fn parse_packet(packet: &Vec<u8>, _socket: &mut UnixStream) -> SSHAgentPacket {
-    println!("parsing packet!");
-    println!("{:X?}", packet);
     let mut cursor = Cursor::new(packet);
 
     let typ = cursor.read_u8().unwrap();
-    println!("typ: {}", typ);
+
     if typ == 11 {
         return SSHAgentPacket::RequestIdentities;
     }
@@ -84,7 +82,6 @@ pub async fn read_and_handle_packet(
 
         let mut msg = vec![0u8; length_bytes as usize];
         tokio::io::AsyncReadExt::read_exact(socket, &mut msg).await?;
-        println!("incomming packet: {:X?}", msg);
 
         let packet = parse_packet(&msg, socket);
 

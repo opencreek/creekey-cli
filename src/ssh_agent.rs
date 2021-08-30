@@ -138,7 +138,7 @@ pub async fn start_agent(should_daemonize: bool) -> Result<()> {
                     let socket = &mut x.unwrap().0;
                     let ret = read_and_handle_packet(socket, vec, new_proxy_send, remove_proxy_send).await;
                     match ret {
-                        Err(e) => eprintln!("{}", e),
+                        Err(e) => eprintln!("error while handling packet: {}", e),
                         _ => {}
                     }
                     eprintln!("Done with connection");

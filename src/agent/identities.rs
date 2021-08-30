@@ -29,9 +29,6 @@ pub async fn give_identities(socket: &mut UnixStream, proxies: Vec<SshProxy>) ->
         }
     };
 
-    println!("{:X?}", key_blob);
-    println!("{}", key_blob.len());
-
     let mut msg_payload = vec![];
     msg_payload.write(&[typ])?;
     msg_payload.write_u32::<BigEndian>(nkeys)?;
@@ -47,14 +44,8 @@ pub async fn give_identities(socket: &mut UnixStream, proxies: Vec<SshProxy>) ->
 
     let length = msg_payload.len() as u32;
 
-    println!("writing: ");
-    println!("length: {}", length);
-    println!("{:X?}", msg_payload);
-
     tokio::io::AsyncWriteExt::write_u32(socket, length).await?;
     tokio::io::AsyncWriteExt::write_all(socket, &msg_payload).await?;
-
-    println!("finished");
 
     Ok(())
 }

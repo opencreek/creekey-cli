@@ -37,11 +37,8 @@ fn parse_user_name(data: Vec<u8>) -> Result<String> {
     cursor.read_u8()?;
 
     let length_name = cursor.read_i32::<BigEndian>()?;
-    println!("{:X?}", length_name);
     let mut name = vec![0u8; length_name as usize];
     cursor.read_exact(&mut name)?;
-
-    println!("{:X?}", name);
 
     Ok(String::from_utf8(name)?)
 }
@@ -258,7 +255,6 @@ pub async fn sign_request(
 
     match proxy {
         Some(a) => {
-            println!("host: {}", a.host);
             payload.insert("hostName", a.host.clone());
         }
         _ => (),
