@@ -92,6 +92,8 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
 
     let base64_data = base64::encode(&buffer);
 
+    log.waiting_on("Waiting on Phone Authorization...")?;
+
     let phone_id = match get_phone_id() {
         Ok(id) => id,
         Err(e) => {
@@ -114,7 +116,6 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
         relay_id: relay_id.clone(),
     };
 
-    log.waiting_on("Waiting on Phone Authorization...")?;
     let response: GgpResponse = match sign_on_phone(request, phone_id, relay_id, key).await {
         Ok(t) => t,
         Err(e) => {
