@@ -25,7 +25,7 @@ jobs:
         steps:
             - name: Build a bottle using Homebrew
               run: |
-                  brew tap opecreek/tab
+                  brew tap opencreek/tab
                   brew install --build-bottle --verbose creekey
                   brew bottle creekey
             - name: Upload the bottle to the GitHub release
