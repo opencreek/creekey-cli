@@ -38,7 +38,7 @@ jobs:
                   asset_name: creekey-cli-${{ github.event.release.tag_name }}.catalina.bottle.1.tar.gz
                   asset_content_type: application/gzip
 
-    bottle_maos_arm:
+    bottle_macos_arm:
         name: Build and distribute Homebrew bottle for macOS arm Big Sur
         runs-on: [self-hosted, macOS, arm]
         needs: [formula]
