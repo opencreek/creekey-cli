@@ -37,12 +37,12 @@ async fn main() -> Result<()> {
         (version: "0.1.0")
         (author: "Opencreek Technogoly UG - opencreek.tech")
         (about: "Secures your private keys on your phone")
-        (@subcommand test =>
-            (about: "Tests the SSH setup")
-        )
         (@subcommand pair =>
             (about: "Pair with a phone")
             (@arg small: -s --small "Prints a smaller more condensed version")
+        )
+        (@subcommand testssh =>
+            (about: "Tests the SSH setup")
         )
         (@subcommand testgit =>
             (about: "test command ")
@@ -65,10 +65,12 @@ async fn main() -> Result<()> {
             (@arg force: -f --force "Forces automatic setup")
         )
         (@subcommand agent =>
+            (setting: AppSettings::Hidden)
             (about: "Runs the agent")
             (@arg daemonize: -d --daemonize "Runs the agent as a daemon")
         )
         (@subcommand proxy =>
+            (setting: AppSettings::Hidden)
             (about: "The ssh proxy")
             (@arg host: "The host to connect to")
             (@arg port: "The port to connect to")
