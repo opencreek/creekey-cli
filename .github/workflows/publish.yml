@@ -13,7 +13,7 @@ jobs:
               uses: NSHipster/update-homebrew-formula-action@main
               with:
                   repository: opencreek/creekey-cli
-                  tap: opencreek/homebrew-tab
+                  tap: opencreek/homebrew-tap
                   formula: creekey.rb
               env:
                   GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
@@ -25,7 +25,7 @@ jobs:
         steps:
             - name: Build a bottle using Homebrew
               run: |
-                  brew tap opencreek/tab
+                  brew tap opencreek/tap
                   brew install --build-bottle --verbose creekey
                   brew bottle creekey
             - name: Upload the bottle to the GitHub release
@@ -46,7 +46,7 @@ jobs:
         steps:
             - name: Build a bottle using Homebrew
               run: |
-                  brew tap opencreek/tab
+                  brew tap opencreek/tap
                   brew install --build-bottle --verbose creekey
                   brew bottle creekey
             - name: Upload the bottle to the GitHub release
@@ -69,7 +69,7 @@ jobs:
             - uses: opencreek/update-homebrew-formula-action@main
               with:
                   repository: opencreek/creekey-cli
-                  tap: opencreek/homebrew-tab
+                  tap: opencreek/homebrew-tap
                   formula: creekey.rb
                   name: creekey
                   message: |
