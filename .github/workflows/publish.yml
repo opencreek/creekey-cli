@@ -35,7 +35,7 @@ jobs:
               with:
                   upload_url: ${{ github.event.release.upload_url }}
                   asset_path: ./creekey--${{ github.event.release.tag_name }}.catalina.bottle.1.tar.gz
-                  asset_name: creekey-cli-${{ github.event.release.tag_name }}.catalina.bottle.1.tar.gz
+                  asset_name: creekey-${{ github.event.release.tag_name }}.catalina.bottle.1.tar.gz
                   asset_content_type: application/gzip
 
 
@@ -56,7 +56,7 @@ jobs:
               with:
                   upload_url: ${{ github.event.release.upload_url }}
                   asset_path: ./creekey--${{ github.event.release.tag_name }}.big_sur.bottle.1.tar.gz
-                  asset_name: creekey-cli-${{ github.event.release.tag_name }}.big_sur.bottle.1.tar.gz
+                  asset_name: creekey-${{ github.event.release.tag_name }}.big_sur.bottle.1.tar.gz
                   asset_content_type: application/gzip
 
     update_formula_bottle:
@@ -66,11 +66,12 @@ jobs:
             - bottle_macos_catalina
             - bottle_macos_big_sur
         steps:
-            - uses: NSHipster/update-homebrew-formula-action@main
+            - uses: opencreek/update-homebrew-formula-action@main
               with:
                   repository: opencreek/creekey-cli
                   tap: opencreek/homebrew-tab
                   formula: creekey.rb
+                  name: creekey
                   message: |
                       Add bottles for creekey ${{ github.event.release.tag_name }}
                       on macOS 10.15 (Catalina) and macOS 11.0 (Big Sur)
