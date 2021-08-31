@@ -249,7 +249,7 @@ pub async fn sign_request(
     let relay_id = base64::encode_config(randombytes(32), base64::URL_SAFE);
 
     let mut payload = HashMap::new();
-    payload.insert("type", "sign".to_string());
+    payload.insert("type", "ssh".to_string());
     payload.insert("data", base64_data);
     payload.insert("userName", name);
 
