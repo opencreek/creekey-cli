@@ -90,7 +90,7 @@ async fn main() -> Result<()> {
         ("pair", Some(matches)) => pair(matches.is_present("small")).await,
         ("unpair", _) => unpair().await,
         ("testgit", _) => test_git().await,
-        ("test", _) => test_sign().await,
+        ("testssh", _) => test_sign().await,
         ("setupssh", Some(matches)) => setup_ssh(matches.is_present("force")),
         ("setupgit", Some(matches)) => setup_git(matches.is_present("force")),
         ("me", Some(matches)) => {
