@@ -5,7 +5,6 @@ use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use futures::channel::mpsc::UnboundedSender;
 use futures::SinkExt;
-use std::convert::TryInto;
 use std::io::Write;
 use std::io::{Cursor, Read};
 
@@ -109,13 +108,13 @@ pub async fn read_and_handle_packet(
 ) -> Result<()> {
     loop {
         socket.readable().await?;
-        let mut length_bytes_vec = [0u8; 4];
-        let bytes_read = socket.try_read(&mut length_bytes_vec).unwrap_or(0);
-        if bytes_read != 4 {
-            // yes this will loop, but the readable call will fail if the socket goes away
-            continue;
-        }
-        let length_bytes = u32::from_be_bytes(length_bytes_vec);
+        let length_bytes = match tokio::io::AsyncReadExt::read_u32(socket).await {
+            Ok(b) => b,
+            Err(e) => match e.kind() {
+                std::io::ErrorKind::UnexpectedEof => break Ok(()),
+                _ => break Err(e.into()),
+            },
+        };
 
         let mut msg = vec![0u8; length_bytes as usize];
         tokio::io::AsyncReadExt::read_exact(socket, &mut msg).await?;
