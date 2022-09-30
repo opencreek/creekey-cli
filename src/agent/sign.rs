@@ -21,7 +21,8 @@ use ring_compat::signature::ecdsa::p256::NistP256;
 use ring_compat::signature::ecdsa::p384::NistP384;
 use ring_compat::signature::Verifier;
 
-use crate::keychain::{get_phone_id, get_secret_key};
+use crate::auto_accept::get_auto_accept;
+use crate::keychain::{get_phone_id, get_secret_key, store_auto_accept};
 use crate::sign_on_phone::{sign_on_phone, SignError};
 use thrussh_keys::key::{parse_public_key, PublicKey};
 use tokio::io::AsyncWriteExt;
@@ -248,10 +249,25 @@ pub async fn sign_request(
     let base64_data = base64::encode(data);
     let relay_id = base64::encode_config(randombytes(32), base64::URL_SAFE);
 
+    let request_id = match proxy {
+        None => None,
+        Some(proxy) => Some(format!("{}@{}", name, proxy.host.clone())),
+    };
+    let auto_accept_token = match request_id.clone() {
+        None => None,
+        Some(request_id) => get_auto_accept("ssh".to_string(), request_id.clone()),
+    };
+
     let mut payload = HashMap::new();
     payload.insert("type", "ssh".to_string());
     payload.insert("data", base64_data);
     payload.insert("userName", name);
+    match auto_accept_token {
+        None => {}
+        Some(token) => {
+            payload.insert("autoAcceptToken", token);
+        }
+    }
 
     match proxy {
         Some(a) => {
@@ -282,7 +298,6 @@ pub async fn sign_request(
             return Ok(());
         }
     };
-
     let phone_response: PhoneSignResponse =
         match sign_on_phone(payload, phone_id, relay_id, key.clone()).await {
             Ok(res) => res,
@@ -314,6 +329,14 @@ pub async fn sign_request(
 
     let signature_bytes = base64::decode(phone_response.signature.unwrap())?;
     println!("responding to socket with authorization");
+
+    if let (Some(auto_accept_token), Some(expires_at), Some(request_id)) = (
+        phone_response.auto_accept_token,
+        phone_response.auto_accept_expires_at,
+        request_id,
+    ) {
+        store_auto_accept("ssh".to_string(), request_id, auto_accept_token, expires_at)?;
+    }
 
     let typ = 14u8;
     let mut msg_payload = vec![];

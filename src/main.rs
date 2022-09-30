@@ -16,6 +16,7 @@ use crate::unpair::unpair;
 
 #[allow(dead_code)] // because we have multiple entry points.
 mod agent;
+mod auto_accept;
 mod communication;
 mod constants;
 mod keychain;
@@ -93,9 +94,11 @@ async fn main() -> Result<()> {
         ("testssh", _) => test_sign().await,
         ("setupssh", Some(matches)) => setup_ssh(matches.is_present("force")),
         ("setupgit", Some(matches)) => setup_git(matches.is_present("force")),
-        ("me", Some(matches)) => {
-            print_ssh_key(matches.is_present("copy"), matches.is_present("raw"), matches.is_present("gpg"))
-        }
+        ("me", Some(matches)) => print_ssh_key(
+            matches.is_present("copy"),
+            matches.is_present("raw"),
+            matches.is_present("gpg"),
+        ),
         ("agent", _) => start_agent(matches.is_present("daemonize")).await,
         ("proxy", Some(matches)) => start_ssh_proxy(matches),
         _ => {
