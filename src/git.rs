@@ -180,7 +180,6 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
         Some(auto_accept_token) => match response.auto_accept_expires_at {
             None => {}
             Some(expires_at) => {
-                log.info("Storing auto accept token!");
                 store_auto_accept(
                     "git".to_string(),
                     committer.to_string(),
