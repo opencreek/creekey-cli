@@ -175,19 +175,15 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
     }
     log.success("Accepted")?;
 
-    match response.auto_accept_token {
-        None => {}
-        Some(auto_accept_token) => match response.auto_accept_expires_at {
-            None => {}
-            Some(expires_at) => {
-                store_auto_accept(
-                    "git".to_string(),
-                    committer.to_string(),
-                    auto_accept_token,
-                    expires_at,
-                )?;
-            }
-        },
+    if let Some(auto_accept_token) = response.auto_accept_token {
+        if let Some(expires_at) = response.auto_accept_expires_at {
+            store_auto_accept(
+                "git".to_string(),
+                committer.to_string(),
+                auto_accept_token,
+                expires_at,
+            )?;
+        }
     }
 
     if let Some(data_base64) = response.signature {

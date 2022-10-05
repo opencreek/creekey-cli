@@ -262,11 +262,8 @@ pub async fn sign_request(
     payload.insert("type", "ssh".to_string());
     payload.insert("data", base64_data);
     payload.insert("userName", name);
-    match auto_accept_token {
-        None => {}
-        Some(token) => {
-            payload.insert("autoAcceptToken", token);
-        }
+    if let Some(token) = auto_accept_token {
+        payload.insert("autoAcceptToken", token);
     }
 
     match proxy {
