@@ -1,4 +1,5 @@
 mod agent;
+mod auto_accept;
 mod communication;
 mod constants;
 mod keychain;
@@ -7,11 +8,16 @@ mod output;
 mod sign_on_phone;
 mod ssh_agent;
 
+use crate::auto_accept::get_auto_accept;
 use crate::communication::PollError;
-use crate::keychain::{get_phone_id, get_secret_key};
+use crate::keychain::{
+    get_auto_accept_expires_at, get_auto_accept_token, get_phone_id, get_secret_key,
+    store_auto_accept, KeyChainError,
+};
 use crate::output::{check_color_tty, Log};
 use crate::sign_on_phone::{sign_on_phone, SignError};
 use anyhow::Result;
+use std::borrow::BorrowMut;
 
 use pgp::armor::BlockType;
 
@@ -23,6 +29,7 @@ use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 
+use chrono::{DateTime, Utc};
 use std::io::{stdin, stdout, Read, Write};
 use std::process::{Command, Stdio};
 
@@ -33,12 +40,21 @@ struct GgpRequest {
     message_type: String,
     #[serde(rename = "relayId")]
     relay_id: String,
+
+    #[serde(rename = "autoAcceptToken")]
+    auto_accept_token: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct GgpResponse {
     signature: Option<String>,
     accepted: bool,
+
+    #[serde(rename = "autoAcceptToken")]
+    auto_accept_token: Option<String>,
+
+    #[serde(rename = "autoAcceptExpiresAt")]
+    auto_accept_expires_at: Option<String>,
 }
 
 struct ArmourSource {
@@ -90,6 +106,24 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
 
     stdin().read_to_string(&mut buffer)?;
 
+    let cloned_buffer = buffer.clone();
+    let lines = cloned_buffer.split("\n");
+    let mut data = lines.map(|line| line.split_once(" "));
+    let committer_data = data.find(|it| match it {
+        None => false,
+        Some((line_type, data)) => line_type.to_string() == "committer",
+    });
+
+    let committer = match committer_data {
+        Some(Some((_, committer))) => {
+            let mut parts: Vec<&str> = committer.split(" ").collect();
+            parts.remove(parts.len() - 1);
+            parts.remove(parts.len() - 1);
+            parts.join(" ")
+        }
+        _ => return Err(anyhow!("Could not parse committer!")),
+    };
+
     let base64_data = base64::encode(&buffer);
 
     log.waiting_on("Waiting on Phone Authorization...")?;
@@ -110,10 +144,12 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
     };
 
     let relay_id = base64::encode_config(randombytes(32), base64::URL_SAFE);
+    let auto_accept_token = get_auto_accept("git".to_string(), committer.clone());
     let request = GgpRequest {
         data: base64_data,
         message_type: "gpg".to_string(),
         relay_id: relay_id.clone(),
+        auto_accept_token,
     };
 
     let response: GgpResponse = match sign_on_phone(request, phone_id, relay_id, key).await {
@@ -138,6 +174,17 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
         return Ok(());
     }
     log.success("Accepted")?;
+
+    if let Some(auto_accept_token) = response.auto_accept_token {
+        if let Some(expires_at) = response.auto_accept_expires_at {
+            store_auto_accept(
+                "git".to_string(),
+                committer.to_string(),
+                auto_accept_token,
+                expires_at,
+            )?;
+        }
+    }
 
     if let Some(data_base64) = response.signature {
         let out = base64::decode(data_base64)?;

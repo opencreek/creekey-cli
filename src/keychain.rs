@@ -28,6 +28,8 @@ const PHONE_ID: &str = "phone-id";
 const PAIRING_DATA: &str = "pairing-data";
 const GPG_KEY: &str = "gpg-key";
 
+const AUTO_ACCEPT: &str = "auto-accept";
+
 fn get(id: &str) -> Result<String, KeyChainError> {
     let keyring = Keyring::new(&SERVICE, id);
 
@@ -88,6 +90,36 @@ pub fn get_phone_id() -> Result<String, KeyChainError> {
 pub fn store_pairing_data(key: Vec<u8>, phone_id: String) -> Result<(), KeyChainError> {
     let key_base64 = base64::encode(key);
     set(PAIRING_DATA, format!("{}|{}", phone_id, key_base64))
+}
+
+pub fn get_auto_accept_token(
+    request_type: String,
+    request_id: String,
+) -> Result<String, KeyChainError> {
+    get(format!("{}-{}-{}-token", AUTO_ACCEPT, request_type, request_id).as_str())
+}
+
+pub fn get_auto_accept_expires_at(
+    request_type: String,
+    request_id: String,
+) -> Result<String, KeyChainError> {
+    get(format!("{}-{}-{}-expires-at", AUTO_ACCEPT, request_type, request_id).as_str())
+}
+
+pub fn store_auto_accept(
+    request_type: String,
+    request_id: String,
+    auto_accept_token: String,
+    expires_at: String,
+) -> Result<(), KeyChainError> {
+    set(
+        format!("{}-{}-{}-token", AUTO_ACCEPT, request_type, request_id).as_str(),
+        auto_accept_token,
+    );
+    set(
+        format!("{}-{}-{}-expires-at", AUTO_ACCEPT, request_type, request_id).as_str(),
+        expires_at,
+    )
 }
 
 pub fn delete_pairing_data() -> Result<(), KeyChainError> {

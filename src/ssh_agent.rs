@@ -77,14 +77,18 @@ pub struct SshProxy {
 pub struct PhoneSignResponse {
     pub signature: Option<String>,
     pub accepted: bool,
+    #[serde(rename = "autoAcceptToken")]
+    pub auto_accept_token: Option<String>,
+
+    #[serde(rename = "autoAcceptExpiresAt")]
+    pub auto_accept_expires_at: Option<String>,
 }
 
 pub async fn start_agent(should_daemonize: bool) -> Result<()> {
     check_color_tty();
 
     if should_daemonize {
-        let daemonize = Daemonize::new()
-            .pid_file("/tmp/ck-agent.pid");
+        let daemonize = Daemonize::new().pid_file("/tmp/ck-agent.pid");
         Log::NONE.waiting_on("Starting deamon...")?;
         daemonize.start()?;
     }
