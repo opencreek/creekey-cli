@@ -80,7 +80,7 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
         Err(_) => {
             let mut tty = Command::new("tty")
                 .stdout(Stdio::piped())
-                .stdin(Stdio::null())
+                .stdin(Stdio::inherit())
                 .spawn()?;
 
             tty.wait()?;
@@ -88,20 +88,17 @@ pub async fn sign_git_commit(armour_output: bool) -> Result<()> {
             let mut string = String::new();
             let mut stdout = tty.stdout.take().unwrap();
             stdout.read_to_string(&mut string)?;
-            string
+            string.trim().to_string()
         }
     };
 
     check_color_tty();
 
-    let file = match fs::OpenOptions::new().write(true).open(path) {
-        Ok(it) => it,
-        Err(_) => {
-            Log::NONE.error("Could not get tty to write to!")?;
-            return Err(anyhow!("Could not get tty to writeto"));
-        }
+    let file = fs::OpenOptions::new().write(true).open(path).ok();
+    let mut log = match &file {
+        Some(f) => Log::from_file(f),
+        None => Log::NONE,
     };
-    let mut log = Log::from_file(&file);
     let mut buffer = String::new();
 
     stdin().read_to_string(&mut buffer)?;
@@ -230,7 +227,6 @@ fn forward_to_pgp() -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _path = env::var("GPG_TTY")?;
     check_color_tty();
 
     let app = App::new("creekey git sign")

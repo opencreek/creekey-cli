@@ -24,7 +24,7 @@ use ring_compat::signature::Verifier;
 use crate::auto_accept::get_auto_accept;
 use crate::keychain::{get_phone_id, get_secret_key, store_auto_accept};
 use crate::sign_on_phone::{sign_on_phone, SignError};
-use thrussh_keys::key::{parse_public_key, PublicKey};
+use russh_keys::key::{parse_public_key, PublicKey};
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::time::{sleep, Duration};
@@ -174,7 +174,7 @@ pub fn check_signature(it: &SshProxy, session_hash: &[u8]) -> Result<bool> {
     let (algo, _key_data) = parse_key_data(it.key.clone()).unwrap();
 
     if algo == "ssh-ed25519" {
-        let pk = parse_public_key(&it.key)?;
+        let pk = parse_public_key(&it.key, None)?;
         let ret = pk.verify_detached(session_hash, &sig_data);
         return Ok(ret);
     } else if algo.starts_with("ssh-rsa") {

@@ -24,7 +24,7 @@ fn start_logger_proxy() -> Result<String> {
         Ok(listener) => listener,
         Err(e) => panic!("{}", e),
     };
-    let mut serr = dup_stderr()?;
+    let mut serr = dup_stderr().ok();
 
     thread::spawn(move || {
         for stream in listener.incoming() {
@@ -35,7 +35,9 @@ fn start_logger_proxy() -> Result<String> {
                         if let Ok(byte) = res {
                             if byte != 255 {
                                 // filter out checking byte
-                                serr.write_u8(byte).unwrap();
+                                if let Some(ref mut s) = serr {
+                                    let _ = s.write_u8(byte);
+                                }
                             }
                         }
                     }
