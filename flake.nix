@@ -28,8 +28,6 @@
           openssl
           libsodium
           libsecret
-          xclip
-          wl-clipboard
         ];
       };
 

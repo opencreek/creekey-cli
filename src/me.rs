@@ -2,7 +2,7 @@ use crate::keychain::get_gpg_from_keychain;
 use crate::output::Log;
 use crate::ssh_agent::read_ssh_key;
 use anyhow::{anyhow, Result};
-use clipboard::{ClipboardContext, ClipboardProvider};
+use arboard::Clipboard;
 
 pub fn print_ssh_key(copy_to_clipboard: bool, raw: bool, gpg: bool) -> Result<()> {
     let log = Log::NONE;
@@ -11,11 +11,11 @@ pub fn print_ssh_key(copy_to_clipboard: bool, raw: bool, gpg: bool) -> Result<()
 
     if !raw {
         if copy_to_clipboard {
-            let mut ctx: ClipboardContext = ClipboardProvider::new()
-                .map_err(|_err| anyhow!("Could not create ClipboardProvider"))?;
+            let mut ctx = Clipboard::new()
+                .map_err(|_err| anyhow!("Could not create Clipboard"))?;
             let key_to_copy = if gpg { gpg_key.clone() } else { key.clone() };
 
-            ctx.set_contents(key_to_copy.clone()).map_err(|err| {
+            ctx.set_text(key_to_copy.clone()).map_err(|err| {
                 println!("{}", err);
                 log.error("Could not set clipboard").unwrap();
                 anyhow!("error setting clipboard")

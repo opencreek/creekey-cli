@@ -23,7 +23,7 @@ serde = { version = "1.0", features = ["derive"]}
 thiserror = "1.0.37"
 anyhow = "1.0.42"
 clap = "2.33.3"
-clipboard = "0.5"
+arboard = "3"
 whoami = "1.1.2"
 os_pipe = "0.9.2"
 colored = "2"
