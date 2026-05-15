@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use clap::ArgMatches;
 use os_pipe::{dup_stderr, dup_stdin, dup_stdout};
@@ -12,13 +12,17 @@ use std::net::{Shutdown, TcpStream};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::{Command, Stdio};
 
+use crate::constants::{agent_socket_path, logger_socket_path};
 use crate::output::Log;
+use crate::setup_ssh::{auto_migrate_ssh_config, SshConfigState};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+const DAEMON_START_TIMEOUT: Duration = Duration::from_secs(5);
 
 fn start_logger_proxy() -> Result<String> {
     let random = base64::encode_config(sodiumoxide::randombytes::randombytes(8), base64::URL_SAFE);
-    let name = format!("/tmp/ck-logger-{}.sock", random);
+    let name = logger_socket_path(&random);
 
     let listener = match UnixListener::bind(name.clone()) {
         Ok(listener) => listener,
@@ -51,14 +55,14 @@ fn start_logger_proxy() -> Result<String> {
 }
 
 fn is_agent_running() -> Result<bool> {
-    match UnixStream::connect("/tmp/ck-ssh-agent.sock") {
+    match UnixStream::connect(agent_socket_path()) {
         Ok(_) => Ok(true),
         Err(_) => Ok(false),
     }
 }
 
 fn send_info_packet(host: &str, socket_path: &str, signature: &[u8], key: &[u8]) -> Result<()> {
-    let mut stream = UnixStream::connect("/tmp/ck-ssh-agent.sock")?;
+    let mut stream = UnixStream::connect(agent_socket_path())?;
 
     stream.write_u32::<BigEndian>(
         (1 + 4 + host.len() + 4 + socket_path.len() + 4 + signature.len() + 4 + key.len())
@@ -86,28 +90,74 @@ fn send_info_packet(host: &str, socket_path: &str, signature: &[u8], key: &[u8])
 }
 
 fn check_running_ssh_agent() -> Result<()> {
-    if !is_agent_running()? {
-        Log::NONE.waiting_on("Starting Daemon...")?;
-        let self_arg = &std::env::args().collect::<Vec<String>>()[0];
-
-        let _child = Command::new(self_arg)
-            .arg("agent")
-            .arg("-d")
-            .stdout(Stdio::null())
-            .stdin(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .unwrap();
-
-        while !is_agent_running()? {
-            thread::sleep(Duration::from_millis(10))
-        }
+    if is_agent_running()? {
+        return Ok(());
     }
-    Ok(())
+
+    Log::NONE.waiting_on("Starting Daemon...")?;
+    let self_arg = &std::env::args().collect::<Vec<String>>()[0];
+
+    let mut child = Command::new(self_arg)
+        .arg("agent")
+        .arg("-d")
+        .stdout(Stdio::null())
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .context("Failed to spawn creekey agent")?;
+
+    let started_at = Instant::now();
+    loop {
+        if is_agent_running()? {
+            return Ok(());
+        }
+
+        if let Some(status) = child.try_wait()? {
+            // The `daemonize` crate forks the actual daemon and exits the
+            // intermediate process with success — that's normal. Only a
+            // non-success exit means the daemon failed to start.
+            if !status.success() {
+                return Err(anyhow!(
+                    "creekey agent failed to start (exit {}). \
+                     If a stale socket from another user exists at {}, remove it manually and try again.",
+                    status,
+                    agent_socket_path(),
+                ));
+            }
+        }
+
+        if started_at.elapsed() >= DAEMON_START_TIMEOUT {
+            return Err(anyhow!(
+                "Timed out after {:?} waiting for the creekey agent to bind {}. \
+                 Check whether a stale socket from another user is blocking it.",
+                DAEMON_START_TIMEOUT,
+                agent_socket_path(),
+            ));
+        }
+
+        thread::sleep(Duration::from_millis(10));
+    }
 }
 
 pub fn start_ssh_proxy(matches: &ArgMatches) -> Result<()> {
     let socket_path = start_logger_proxy()?;
+
+    match auto_migrate_ssh_config() {
+        Ok(SshConfigState::Upgraded { from }) => {
+            let _ = Log::NONE.info(&format!(
+                "Migrated ~/.ssh/config from creekey config {} to the current format. \
+                 The next ssh invocation will pick up the new agent socket path.",
+                from
+            ));
+        }
+        Ok(_) => {}
+        Err(e) => {
+            let _ = Log::NONE.info(&format!(
+                "Could not check ~/.ssh/config for outdated creekey config: {}",
+                e
+            ));
+        }
+    }
 
     check_running_ssh_agent()?;
 

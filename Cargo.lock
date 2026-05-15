@@ -621,6 +621,7 @@ dependencies = [
  "ecdsa",
  "futures",
  "keyring",
+ "libc",
  "openssl",
  "os_pipe",
  "pgp",

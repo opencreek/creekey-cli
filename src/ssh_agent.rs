@@ -1,4 +1,4 @@
-use crate::constants::get_ssh_key_path;
+use crate::constants::{agent_pid_path, agent_socket_path, get_ssh_key_path};
 
 use anyhow::Context;
 use anyhow::Result;
@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std;
 
 use std::fs;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 use tokio::net::UnixListener;
@@ -24,8 +25,16 @@ use crate::output::{check_color_tty, Log};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::Duration;
 
-fn cleanup_socket() {
-    let _ = std::fs::remove_file("/tmp/ck-ssh-agent.sock").unwrap_or(());
+fn try_remove_socket(path: &str) -> std::io::Result<()> {
+    match std::fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
+fn cleanup_socket_best_effort() {
+    let _ = try_remove_socket(&agent_socket_path());
 }
 
 #[derive(Error, Debug, Clone)]
@@ -87,25 +96,35 @@ pub struct PhoneSignResponse {
 pub async fn start_agent(should_daemonize: bool) -> Result<()> {
     check_color_tty();
 
+    let socket_path = agent_socket_path();
+
     if should_daemonize {
-        let daemonize = Daemonize::new().pid_file("/tmp/ck-agent.pid");
+        let daemonize = Daemonize::new().pid_file(agent_pid_path());
         Log::NONE.waiting_on("Starting deamon...")?;
         daemonize.start()?;
     }
 
     proctitle::set_title("creekey-agent");
     ctrlc::set_handler(move || {
-        cleanup_socket();
+        cleanup_socket_best_effort();
         std::process::exit(0);
     })
     .expect("couldn't set ctrlc handler");
 
-    cleanup_socket();
+    if let Err(e) = try_remove_socket(&socket_path) {
+        if Path::new(&socket_path).exists() {
+            return Err(anyhow::anyhow!(
+                "Could not remove stale agent socket at {}: {}. \
+                 The file is likely owned by another user (e.g. left by a `sudo creekey` run). \
+                 Remove it manually and try again.",
+                socket_path,
+                e,
+            ));
+        }
+    }
 
-    let listener = match UnixListener::bind("/tmp/ck-ssh-agent.sock") {
-        Ok(listener) => listener,
-        Err(e) => panic!("{}", e),
-    };
+    let listener = UnixListener::bind(&socket_path)
+        .with_context(|| format!("Failed to bind agent socket {}", socket_path))?;
 
     println!("Waiting...");
 

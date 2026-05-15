@@ -39,6 +39,7 @@ ring-compat={ version="0.3.1", features=["signature"]}
 openssl="0.10.36"
 keyring="0.10.1"
 pgp="0.7.2"
+libc="0.2"
 
 [[bin]]
 name = "creekey-git-sign"
